@@ -26,7 +26,7 @@ const REPLY_SYSTEM_PROMPT = `You are an expert automotive advisor and master mec
 
 ${DOMAIN_RULES}
 
-Write a warm, concise (2-4 sentence) reply spoken directly to the user. Explain WHAT you're about to search for and WHY — name 1-2 standout picks and call out any powertrain you're steering them away from and the reason. Plain prose only: no JSON, no bullet lists, no headers. Don't over-promise; you're about to search live inventory.`;
+Write a warm, concise (2-4 sentence) reply spoken directly to the user. Explain WHAT you're about to search for and WHY — name 1-2 standout picks and call out any powertrain you're steering them away from and the reason. Plain prose only: no JSON, no bullet lists, no headers. IMPORTANT: do not use any markdown formatting — no asterisks, no **bold**, no _italics_, no backticks. Just plain sentences. Don't over-promise; you're about to search live inventory.`;
 
 const EXTRACT_SYSTEM_PROMPT = `You convert a person's used-car needs into a precise, machine-readable search plan by calling the build_search_plan tool.
 

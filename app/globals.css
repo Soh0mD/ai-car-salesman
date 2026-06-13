@@ -272,7 +272,12 @@ body {
 .md-slider::-webkit-slider-runnable-track {
   height: 16px;
   border-radius: var(--md-corner-full);
-  background: var(--md-secondary-container);
+  /* active (filled) portion in primary, remainder in the container tone */
+  background: linear-gradient(
+    to right,
+    var(--md-primary) var(--pct, 0%),
+    var(--md-secondary-container) var(--pct, 0%)
+  );
 }
 .md-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
@@ -287,7 +292,11 @@ body {
 .md-slider::-moz-range-track {
   height: 16px;
   border-radius: var(--md-corner-full);
-  background: var(--md-secondary-container);
+  background: linear-gradient(
+    to right,
+    var(--md-primary) var(--pct, 0%),
+    var(--md-secondary-container) var(--pct, 0%)
+  );
 }
 .md-slider::-moz-range-thumb {
   height: 28px;

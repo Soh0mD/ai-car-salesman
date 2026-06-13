@@ -13,7 +13,9 @@ export function Results({
   profile: WizardProfile;
   onRestart: () => void;
 }) {
-  const [reply, setReply] = useState("");
+  const [reply, setReply] = useState(""); // raw accumulated text
+  const [shown, setShown] = useState(""); // smoothly-revealed text (typewriter)
+  const targetRef = useRef(""); // latest reply with markdown stripped
   const [listings, setListings] = useState<NormalizedListing[]>([]);
   const [counts, setCounts] = useState<Record<string, number> | null>(null);
   const [reliabilityLoading, setReliabilityLoading] = useState(false);
@@ -36,6 +38,26 @@ export function Results({
     });
   }, [profile]);
 
+  // Keep the typewriter target in sync with the raw reply, stripped of any stray markdown.
+  useEffect(() => {
+    targetRef.current = reply.replace(/[*_`]+/g, "");
+  }, [reply]);
+
+  // Reveal characters at a steady rate so streaming reads smoothly instead of jumping in
+  // bursts as network chunks arrive. Catches up faster the further behind it is.
+  useEffect(() => {
+    const id = setInterval(() => {
+      setShown((prev) => {
+        const full = targetRef.current;
+        if (prev.length >= full.length) return prev;
+        const step = Math.max(1, Math.ceil((full.length - prev.length) / 12));
+        return full.slice(0, prev.length + step);
+      });
+    }, 24);
+    return () => clearInterval(id);
+  }, []);
+
+  const typing = shown.length < reply.replace(/[*_`]+/g, "").length || !done;
   const searching = reply.length > 0 && listings.length === 0 && !error && !done;
 
   return (
@@ -63,8 +85,8 @@ export function Results({
             color: "var(--md-on-secondary-container)",
           }}
         >
-          {reply}
-          {!done && <span className="ml-0.5 inline-block animate-pulse">▌</span>}
+          {shown}
+          {typing && <span className="ml-0.5 inline-block animate-pulse">▌</span>}
         </div>
       ) : (
         <Loader label="Reading your answers…" />

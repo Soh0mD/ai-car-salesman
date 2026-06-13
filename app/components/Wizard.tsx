@@ -167,7 +167,7 @@ function buildSteps(
               value={p.zip_code}
               onChange={(e) => update({ zip_code: e.target.value.replace(/\D/g, "").slice(0, 5) })}
               aria-label="ZIP code"
-              className="md-field mt-2 w-44 text-2xl font-bold tracking-widest"
+              className="md-field mt-2 w-44 text-center text-2xl font-bold tracking-widest"
             />
             {!zipValid && p.zip_code.length > 0 && (
               <p className="mt-1 text-xs" style={{ color: "var(--md-error)" }}>
@@ -216,7 +216,7 @@ function buildSteps(
           </BigValue>
           <Label>Oldest — {p.year_min}</Label>
           <Slider
-            min={2005}
+            min={1900}
             max={CURRENT_YEAR}
             step={1}
             value={p.year_min}
@@ -224,7 +224,7 @@ function buildSteps(
           />
           <Label>Newest — {p.year_max}</Label>
           <Slider
-            min={2005}
+            min={1900}
             max={CURRENT_YEAR}
             step={1}
             value={p.year_max}
@@ -397,6 +397,7 @@ function Slider({
   value: number;
   onChange: (v: number) => void;
 }) {
+  const pct = max > min ? ((value - min) / (max - min)) * 100 : 0;
   return (
     <input
       type="range"
@@ -406,6 +407,7 @@ function Slider({
       value={value}
       onChange={(e) => onChange(Number(e.target.value))}
       className="md-slider"
+      style={{ ["--pct"]: `${pct}%` } as React.CSSProperties}
     />
   );
 }
