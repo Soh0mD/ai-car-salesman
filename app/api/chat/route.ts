@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { buildSearchPlan, type ChatMessage } from "@/lib/llm";
-import { aggregate } from "@/lib/aggregate";
+import { searchAndRank, enrichListings } from "@/lib/aggregate";
 import { checkRateLimit, cacheGet, cacheSet, planCacheKey } from "@/lib/limits";
 import type { NormalizedListing } from "@/lib/types";
 
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
         const cached = await cacheGet<CachedResponse>(cacheKey);
         if (cached) {
           send("reply", { text: cached.reply });
-          send("listings", { listings: cached.listings, counts: cached.counts, cached: true });
+          send("listings", { listings: cached.listings, counts: cached.counts, enriched: true });
           send("done", {});
           controller.close();
           return;
@@ -62,9 +62,13 @@ export async function POST(req: NextRequest) {
         send("reply", { text: plan.conversational_reply });
         send("plan", { constraints: plan.constraints, targets: plan.automotive_targets });
 
-        // 2) Concurrent inventory aggregation.
-        const { listings, counts } = await aggregate(plan);
-        send("listings", { listings, counts, cached: false });
+        // 2) Progressive delivery: show cards as soon as inventory returns (fast, ~2-3s),
+        //    then stream the same listings back enriched with NHTSA recall/complaint data.
+        const { listings, counts } = await searchAndRank(plan);
+        send("listings", { listings, counts, enriched: false });
+
+        await enrichListings(listings, plan); // mutates + re-sorts in place
+        send("listings", { listings, counts, enriched: true });
 
         await cacheSet(cacheKey, {
           reply: plan.conversational_reply,

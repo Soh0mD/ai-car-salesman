@@ -91,9 +91,13 @@ function scoreListing(l: NormalizedListing, plan: SearchPlan): number {
   return Math.round(Math.max(0, Math.min(100, score)));
 }
 
-/** Run the full search-plan -> ranked-listings pipeline. */
-export async function aggregate(plan: SearchPlan): Promise<AggregateResult> {
-  // 1) Concurrent fan-out. allSettled so one failing/slow source never sinks the others.
+/**
+ * Phase A (fast): fan out to inventory sources, dedupe, apply the instant curated reliability
+ * flags, score, sort, and trim to the result set. No NHTSA network calls here, so this returns
+ * in ~2-3s — fast enough to show the user cards immediately (see app/api/chat/route.ts).
+ */
+export async function searchAndRank(plan: SearchPlan): Promise<AggregateResult> {
+  // Concurrent fan-out. allSettled so one failing/slow source never sinks the others.
   const settled = await Promise.allSettled([
     marketcheckSearch(plan),
     ebaySearch(plan),
@@ -109,25 +113,33 @@ export async function aggregate(plan: SearchPlan): Promise<AggregateResult> {
     merged = merged.concat(items);
   });
 
-  // 2) Dedupe across sources, then drop explicitly-excluded body styles.
+  // Dedupe across sources, then drop explicitly-excluded body styles.
   const excluded = plan.automotive_targets.excluded_body_styles;
   let listings = dedupe(merged).filter((l) => !matchesExcludedBodyStyle(l, excluded));
 
-  // 3) Pre-rank with an un-enriched score, then keep only the result set we'll return.
-  // Enriching BEFORE trimming (and only the trimmed set) is critical: recall penalties
-  // re-rank listings, so every listing we might show must be enriched — otherwise an
-  // un-enriched listing can float to the top with a stale, recall-free score.
-  listings.forEach((l) => (l.value_score = scoreListing(l, plan)));
-  listings.sort((a, b) => b.value_score - a.value_score);
-  listings = listings.slice(0, MAX_RESULTS);
-
-  // 3b) Deterministic curated reliability flags (independent of the LLM's reasoning).
+  // Deterministic curated reliability flags (instant, in-memory — no network).
   for (const l of listings) {
     l.reliability_flag = checkReliability(l.make, l.model, l.year);
   }
 
-  // 4) Enrich with NHTSA recall counts, de-duplicated by make/model/year so identical
-  // vehicles are looked up once. Concurrency-capped to stay polite to the NHTSA API.
+  // Score (curated flags already factored in) and trim to the set we'll return + enrich.
+  listings.forEach((l) => (l.value_score = scoreListing(l, plan)));
+  listings.sort((a, b) => b.value_score - a.value_score);
+  listings = listings.slice(0, MAX_RESULTS);
+
+  return { listings, counts };
+}
+
+/**
+ * Phase B (slow): enrich the given listings with NHTSA recalls + complaints, then re-score
+ * and re-sort. Mutates the listings in place (and returns them). Streamed as a follow-up so
+ * the UI shows cards first, then fills in the reliability badges.
+ */
+export async function enrichListings(
+  listings: NormalizedListing[],
+  plan: SearchPlan,
+): Promise<NormalizedListing[]> {
+  // De-duplicate NHTSA lookups by make/model/year so identical vehicles are fetched once.
   const comboKey = (l: NormalizedListing) => `${l.make}|${l.model}|${l.year}`;
   const uniqueCombos = new Map<string, NormalizedListing>();
   for (const l of listings) {
@@ -151,9 +163,15 @@ export async function aggregate(plan: SearchPlan): Promise<AggregateResult> {
     if (c !== undefined) l.complaints = c;
   }
 
-  // 5) Re-score (enriched listings now factor in recalls) and produce the final order.
+  // Re-score (enriched listings now factor in recalls/complaints) and re-sort.
   listings.forEach((l) => (l.value_score = scoreListing(l, plan)));
   listings.sort((a, b) => b.value_score - a.value_score);
+  return listings;
+}
 
-  return { listings, counts };
+/** Convenience: run both phases. Used by the smoke test; the route runs the phases separately. */
+export async function aggregate(plan: SearchPlan): Promise<AggregateResult> {
+  const result = await searchAndRank(plan);
+  await enrichListings(result.listings, plan);
+  return result;
 }

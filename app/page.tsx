@@ -18,6 +18,7 @@ export default function Home() {
   const [listings, setListings] = useState<NormalizedListing[]>([]);
   const [counts, setCounts] = useState<Record<string, number> | null>(null);
   const [status, setStatus] = useState<"idle" | "thinking" | "searching">("idle");
+  const [reliabilityLoading, setReliabilityLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -28,6 +29,7 @@ export default function Home() {
     setError(null);
     setListings([]);
     setCounts(null);
+    setReliabilityLoading(false);
     const nextMessages: ChatMessage[] = [...messages, { role: "user", content: query }];
     setMessages(nextMessages);
     setInput("");
@@ -84,6 +86,7 @@ export default function Home() {
       case "listings":
         setListings((data.listings as NormalizedListing[]) ?? []);
         setCounts((data.counts as Record<string, number>) ?? null);
+        setReliabilityLoading(!(data.enriched as boolean));
         break;
       case "error":
         setError(data.message as string);
@@ -134,7 +137,9 @@ export default function Home() {
         ))}
 
         {status === "thinking" && <Thinking label="Understanding your needs…" />}
-        {status === "searching" && <Thinking label="Searching live inventory…" />}
+        {status === "searching" && listings.length === 0 && (
+          <Thinking label="Searching live inventory…" />
+        )}
         {error && (
           <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
             {error}
@@ -144,7 +149,14 @@ export default function Home() {
         {listings.length > 0 && (
           <section className="space-y-3 pt-2">
             <div className="flex items-center justify-between text-xs text-neutral-500">
-              <span className="font-medium">{listings.length} matches, best value first</span>
+              <span className="font-medium">
+                {listings.length} matches, best value first
+                {reliabilityLoading && (
+                  <span className="ml-2 font-normal text-blue-500">
+                    · checking recalls &amp; complaints…
+                  </span>
+                )}
+              </span>
               {counts && (
                 <span>
                   {Object.entries(counts)
