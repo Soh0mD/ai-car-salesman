@@ -58,7 +58,8 @@ export function briefFromProfile(p: WizardProfile): string {
     `I'd consider model years ${p.year_min}-${p.year_max}, up to ${p.max_mileage.toLocaleString()} miles.`,
     `Fuel efficiency priority is ${p.fuel_priority}.`,
     `On a 1-5 scale, safety matters ${p.safety}/5 and fun-to-drive matters ${p.fun}/5.`,
-    p.needs_awd ? "I need AWD/4WD for bad weather." : "AWD isn't required.",
+    p.drivetrain !== "any" ? `I want ${p.drivetrain.toUpperCase()} drivetrain.` : "",
+    p.transmission !== "any" ? `I want a ${p.transmission} transmission.` : "",
     p.body_styles.length ? `Preferred body styles: ${p.body_styles.join(", ")}.` : "",
     p.excluded_body_styles.length ? `Do not include: ${p.excluded_body_styles.join(", ")}.` : "",
   ]
@@ -77,7 +78,18 @@ function applyProfileOverrides(plan: SearchPlan, p: WizardProfile): void {
     max_mileage: p.max_mileage,
     year_min: p.year_min,
     year_max: p.year_max,
+    transmission: p.transmission === "any" ? null : p.transmission,
   });
+  // Drivetrain preference: AWD also accepts 4WD; FWD/RWD are exact.
+  const driveMap: Record<WizardProfile["drivetrain"], string[]> = {
+    any: [],
+    awd: ["AWD", "4WD"],
+    fwd: ["FWD"],
+    rwd: ["RWD"],
+  };
+  if (p.drivetrain !== "any") {
+    plan.automotive_targets.mechanical_filters.preferred_drivetrains = driveMap[p.drivetrain];
+  }
   if (p.body_styles.length) plan.automotive_targets.body_styles = p.body_styles;
   if (p.excluded_body_styles.length) {
     plan.automotive_targets.excluded_body_styles = [

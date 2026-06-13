@@ -55,6 +55,27 @@ function matchesExcludedBodyStyle(l: NormalizedListing, excluded: string[]): boo
   return excluded.some((e) => bs.includes(e.toLowerCase()));
 }
 
+/** True if the listing's transmission satisfies the preference (unknowns are kept). */
+function transmissionMatches(t: string | null, want: "manual" | "automatic" | null | undefined): boolean {
+  if (!want || !t) return true;
+  const isManual = t.toLowerCase().includes("manual");
+  return want === "manual" ? isManual : !isManual;
+}
+
+/** True if the listing's drivetrain satisfies any preferred drivetrain (unknowns are kept). */
+function drivetrainMatches(d: string | null, preferred: string[]): boolean {
+  if (preferred.length === 0 || !d) return true;
+  const dd = d.toLowerCase();
+  return preferred.some((p) => {
+    const pp = p.toLowerCase();
+    if (pp.includes("rwd") || pp.includes("rear")) return dd.includes("rwd") || dd.includes("rear");
+    if (pp.includes("fwd") || pp.includes("front")) return dd.includes("fwd") || dd.includes("front");
+    if (pp.includes("awd") || pp.includes("4wd") || pp.includes("4x4") || pp.includes("all"))
+      return ["awd", "4wd", "4x4", "all"].some((k) => dd.includes(k));
+    return dd.includes(pp);
+  });
+}
+
 /**
  * Composite 0..100 value score: cheaper-than-budget, closer, fewer recalls, and a bump for
  * reliability-tier intent. Listings without enough data still get a reasonable baseline.
@@ -115,13 +136,16 @@ export async function searchAndRank(plan: SearchPlan): Promise<AggregateResult> 
 
   // Dedupe across sources, then drop excluded body styles + out-of-range year/mileage.
   const excluded = plan.automotive_targets.excluded_body_styles;
-  const { year_min, year_max, max_mileage } = plan.constraints;
+  const preferredDrive = plan.automotive_targets.mechanical_filters.preferred_drivetrains;
+  const { year_min, year_max, max_mileage, transmission } = plan.constraints;
   let listings = dedupe(merged).filter((l) => {
     if (matchesExcludedBodyStyle(l, excluded)) return false;
     // Only filter when the listing actually reports the field (don't drop unknowns).
     if (year_min && l.year && l.year < year_min) return false;
     if (year_max && l.year && l.year > year_max) return false;
     if (max_mileage && l.mileage && l.mileage > max_mileage) return false;
+    if (!transmissionMatches(l.transmission, transmission)) return false;
+    if (!drivetrainMatches(l.drivetrain, preferredDrive)) return false;
     return true;
   });
 

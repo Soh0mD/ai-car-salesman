@@ -42,6 +42,7 @@ export function ListingCard({ listing: l }: { listing: NormalizedListing }) {
         <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-neutral-500">
           {l.mileage != null && <span>{miles(l.mileage)}</span>}
           {l.drivetrain && <span>{l.drivetrain}</span>}
+          {l.transmission && <span>{l.transmission}</span>}
           {l.distance_miles != null && <span>{l.distance_miles} mi away</span>}
           {l.dealer_name && <span className="truncate">{l.dealer_name}</span>}
         </div>

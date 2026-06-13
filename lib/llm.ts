@@ -34,8 +34,10 @@ ${DOMAIN_RULES}
 
 Tool field guidance:
 - min_seating_capacity, fuel_efficiency_priority ("low"/"medium"/"high"), zip_code, radius_miles, budget_max from the request.
+- transmission: set "manual" when they say manual/stick/stick-shift/3-pedal; "automatic" when they say automatic; otherwise null.
+- mechanical_filters.preferred_drivetrains: set from any drivetrain preference — "RWD" for rear-wheel drive, "FWD" for front-wheel, "AWD" and "4WD" together for all-wheel/4x4/snow. Empty if no preference.
 - excluded_body_styles: e.g. "Minivan" when disliked.
-- suggested_models: 3-6 specific make/model/year-range combos that genuinely fit and fit the budget.
+- suggested_models: 3-6 specific make/model/year-range combos that genuinely fit and fit the budget. Honor the drivetrain/transmission preference (e.g. cheap RWD manual fun -> Mazda MX-5 Miata, Subaru BRZ, Toyota 86, Ford Mustang, Nissan 370Z).
 - mechanical_filters.excluded_powertrains: failure-prone drivetrains relevant to this segment.
 - reliability_tier: "highest" only for bulletproof picks, "high" otherwise, "any" if they don't care.
 
@@ -61,6 +63,7 @@ const SEARCH_PLAN_TOOL: Anthropic.Tool = {
             enum: ["low", "medium", "high", null],
           },
           intended_use: { type: ["string", "null"] },
+          transmission: { type: ["string", "null"], enum: ["manual", "automatic", null] },
         },
         required: [],
       },

@@ -95,7 +95,8 @@ function ProfileSummary({ profile: p }: { profile: WizardProfile }) {
     `${p.seats}+ seats`,
     `${p.year_min}–${p.year_max}`,
     `<${(p.max_mileage / 1000).toFixed(0)}k mi`,
-    p.needs_awd ? "AWD" : null,
+    p.drivetrain !== "any" ? p.drivetrain.toUpperCase() : null,
+    p.transmission !== "any" ? p.transmission : null,
     ...p.body_styles,
   ].filter(Boolean) as string[];
   return (

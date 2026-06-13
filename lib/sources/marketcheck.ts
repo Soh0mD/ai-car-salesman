@@ -29,6 +29,7 @@ interface MCListing {
     model?: string;
     trim?: string;
     drivetrain?: string;
+    transmission?: string;
     body_type?: string;
   };
   media?: { photo_links?: string[] };
@@ -66,6 +67,7 @@ function mapListing(l: MCListing): NormalizedListing | null {
     listing_url: l.vdp_url,
     dealer_name: l.dealer?.name ?? null,
     drivetrain: l.build?.drivetrain ?? null,
+    transmission: l.build?.transmission ?? null,
     body_style: l.build?.body_type ?? null,
     recall_count: null,
     complaints: null,
@@ -97,6 +99,13 @@ export async function search(plan: SearchPlan): Promise<NormalizedListing[]> {
     }
     if (constraints.budget_max) params.set("price_range", `0-${Math.round(constraints.budget_max)}`);
     if (constraints.max_mileage) params.set("miles_range", `0-${Math.round(constraints.max_mileage)}`);
+    if (constraints.transmission) {
+      params.set("transmission", constraints.transmission === "manual" ? "Manual" : "Automatic");
+    }
+    // Source-level drivetrain filter only when there's a single unambiguous preference
+    // (RWD/FWD are rare enough that filtering at the source actually surfaces them).
+    const preferred = automotive_targets.mechanical_filters.preferred_drivetrains;
+    if (preferred.length === 1) params.set("drivetrain", preferred[0]);
     if (constraints.zip_code) params.set("zip", constraints.zip_code);
     if (constraints.radius_miles) params.set("radius", String(constraints.radius_miles));
     return getJson(`${BASE}?${params.toString()}`);

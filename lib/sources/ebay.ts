@@ -86,6 +86,7 @@ function mapItem(item: EbayItem, hint: SuggestedModel | null): NormalizedListing
     listing_url: item.itemWebUrl,
     dealer_name: item.seller?.username ?? null,
     drivetrain: null,
+    transmission: null,
     body_style: null,
     recall_count: null,
     complaints: null,

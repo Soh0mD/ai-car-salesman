@@ -28,6 +28,7 @@ export const constraintsSchema = z.object({
   max_mileage: z.number().nullable().optional(),
   year_min: z.number().nullable().optional(),
   year_max: z.number().nullable().optional(),
+  transmission: z.enum(["manual", "automatic"]).nullable().optional(),
 });
 
 export const mechanicalFiltersSchema = z.object({
@@ -71,7 +72,8 @@ export interface WizardProfile {
   fuel_priority: "low" | "medium" | "high";
   safety: number; // 1-5
   fun: number; // 1-5
-  needs_awd: boolean;
+  drivetrain: "any" | "awd" | "fwd" | "rwd";
+  transmission: "any" | "automatic" | "manual";
   body_styles: string[];
   excluded_body_styles: string[];
 }
@@ -103,6 +105,7 @@ export interface NormalizedListing {
   listing_url: string;
   dealer_name: string | null;
   drivetrain: string | null;
+  transmission: string | null;
   body_style: string | null;
   recall_count: number | null;
   /** Live NHTSA consumer-complaint volume (total + powertrain subset), null if unavailable. */

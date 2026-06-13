@@ -18,7 +18,8 @@ const DEFAULT_PROFILE: WizardProfile = {
   fuel_priority: "medium",
   safety: 3,
   fun: 3,
-  needs_awd: false,
+  drivetrain: "any",
+  transmission: "any",
   body_styles: [],
   excluded_body_styles: [],
 };
@@ -277,16 +278,34 @@ function buildSteps(
       ),
     },
     {
-      title: "Need all-wheel drive?",
-      subtitle: "For snow, rain, or rough roads.",
+      title: "Drivetrain preference?",
+      subtitle: "RWD is the fun one; AWD grips in bad weather.",
       canNext: true,
       body: (
         <ChoiceGrid
-          value={p.needs_awd ? "yes" : "no"}
-          onChange={(v) => update({ needs_awd: v === "yes" })}
+          value={p.drivetrain}
+          onChange={(v) => update({ drivetrain: v as WizardProfile["drivetrain"] })}
           options={[
-            { value: "yes", emoji: "❄️", label: "Yes", desc: "AWD / 4WD" },
-            { value: "no", emoji: "☀️", label: "Not important", desc: "Any drivetrain" },
+            { value: "any", emoji: "🤷", label: "No preference", desc: "Anything" },
+            { value: "awd", emoji: "❄️", label: "AWD / 4WD", desc: "Snow & grip" },
+            { value: "fwd", emoji: "🚗", label: "FWD", desc: "Efficient" },
+            { value: "rwd", emoji: "🏎️", label: "RWD", desc: "Sporty & fun" },
+          ]}
+        />
+      ),
+    },
+    {
+      title: "Transmission?",
+      subtitle: "Three pedals or two?",
+      canNext: true,
+      body: (
+        <ChoiceGrid
+          value={p.transmission}
+          onChange={(v) => update({ transmission: v as WizardProfile["transmission"] })}
+          options={[
+            { value: "any", emoji: "🤷", label: "Either", desc: "No preference" },
+            { value: "automatic", emoji: "🚙", label: "Automatic", desc: "Easy driving" },
+            { value: "manual", emoji: "🕹️", label: "Manual", desc: "Stick shift" },
           ]}
         />
       ),

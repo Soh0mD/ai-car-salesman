@@ -24,6 +24,7 @@ interface AutoDevRecord {
     style?: string;
     bodyStyle?: string;
     drivetrain?: string;
+    transmission?: string;
   };
   retailListing?: {
     price?: number;
@@ -56,6 +57,7 @@ function mapRecord(r: AutoDevRecord): NormalizedListing | null {
     listing_url: rl.vdp,
     dealer_name: rl.dealer ?? null,
     drivetrain: v.drivetrain ?? null,
+    transmission: v.transmission ?? null,
     body_style: v.bodyStyle ?? null,
     recall_count: null,
     complaints: null,
