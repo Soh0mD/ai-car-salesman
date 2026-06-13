@@ -15,11 +15,16 @@ export default function Home() {
   const [profile, setProfile] = useState<WizardProfile | null>(null);
 
   return (
-    <div className="relative min-h-dvh overflow-hidden">
-      {/* playful gradient backdrop */}
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-lime-50 via-white to-emerald-50 dark:from-neutral-950 dark:via-neutral-950 dark:to-emerald-950/30" />
-      <div className="pointer-events-none absolute -left-24 top-10 -z-10 h-72 w-72 rounded-full bg-emerald-300/30 blur-3xl dark:bg-emerald-600/10" />
-      <div className="pointer-events-none absolute -right-24 top-48 -z-10 h-72 w-72 rounded-full bg-lime-300/30 blur-3xl dark:bg-lime-600/10" />
+    <div className="relative min-h-dvh overflow-hidden" style={{ background: "var(--md-surface)" }}>
+      {/* expressive surface blobs */}
+      <div
+        className="pointer-events-none absolute -left-24 top-6 -z-10 h-80 w-80 rounded-full blur-3xl opacity-50"
+        style={{ background: "var(--md-primary-container)" }}
+      />
+      <div
+        className="pointer-events-none absolute -right-24 top-52 -z-10 h-80 w-80 rounded-full blur-3xl opacity-40"
+        style={{ background: "var(--md-tertiary-container)" }}
+      />
 
       <AnimatePresence mode="wait">
         <motion.div

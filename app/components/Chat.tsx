@@ -53,18 +53,15 @@ export function Chat({ onHome }: { onHome: () => void }) {
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 py-6">
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-lg font-bold">Describe it yourself</h1>
-        <button
-          onClick={onHome}
-          className="rounded-full border border-neutral-300 px-3 py-1.5 text-xs font-semibold transition hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-800"
-        >
+        <h1 className="md-title">Describe it yourself</h1>
+        <button onClick={onHome} className="md-btn md-btn-text text-sm">
           ← Home
         </button>
       </div>
 
       <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto">
         {messages.length === 0 && (
-          <p className="text-sm text-neutral-500">
+          <p className="text-sm" style={{ color: "var(--md-on-surface-variant)" }}>
             Tell me what you need — e.g. &quot;reliable AWD SUV for snowy commutes near Indy,
             under $22k&quot;.
           </p>
@@ -72,10 +69,14 @@ export function Chat({ onHome }: { onHome: () => void }) {
         {messages.map((m, i) => (
           <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
             <div
-              className={
+              className="max-w-[85%] rounded-3xl px-4 py-2.5 text-sm"
+              style={
                 m.role === "user"
-                  ? "max-w-[85%] rounded-2xl bg-emerald-600 px-4 py-2.5 text-sm text-white"
-                  : "max-w-[85%] rounded-2xl bg-white px-4 py-2.5 text-sm shadow-sm dark:bg-neutral-900"
+                  ? { background: "var(--md-primary)", color: "var(--md-on-primary)" }
+                  : {
+                      background: "var(--md-surface-container-high)",
+                      color: "var(--md-on-surface)",
+                    }
               }
             >
               {m.content}
@@ -84,7 +85,13 @@ export function Chat({ onHome }: { onHome: () => void }) {
         ))}
 
         {error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+          <div
+            className="rounded-2xl px-4 py-3 text-sm"
+            style={{
+              background: "var(--md-error-container)",
+              color: "var(--md-on-error-container)",
+            }}
+          >
             {error}
           </div>
         )}
@@ -104,13 +111,9 @@ export function Chat({ onHome }: { onHome: () => void }) {
           onChange={(e) => setInput(e.target.value)}
           placeholder="What are you looking for?"
           disabled={busy}
-          className="flex-1 rounded-xl border border-neutral-300 bg-white px-4 py-3 text-sm outline-none focus:border-emerald-500 disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900"
+          className="md-field flex-1 text-sm"
         />
-        <button
-          type="submit"
-          disabled={busy || !input.trim()}
-          className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:opacity-40"
-        >
+        <button type="submit" disabled={busy || !input.trim()} className="md-btn md-btn-filled">
           {busy ? "…" : "Search"}
         </button>
       </form>

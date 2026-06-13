@@ -46,11 +46,8 @@ export function Results({
       className="mx-auto w-full max-w-2xl px-5 py-8"
     >
       <div className="mb-5 flex items-center justify-between">
-        <h1 className="text-2xl font-extrabold tracking-tight">Here&apos;s what I found 🔑</h1>
-        <button
-          onClick={onRestart}
-          className="rounded-full border border-neutral-300 px-4 py-2 text-sm font-semibold transition hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-800"
-        >
+        <h1 className="md-headline">Here&apos;s what I found 🔑</h1>
+        <button onClick={onRestart} className="md-btn md-btn-tonal">
           Start over
         </button>
       </div>
@@ -59,7 +56,13 @@ export function Results({
 
       {/* advice */}
       {reply ? (
-        <div className="mt-4 rounded-2xl bg-emerald-50 px-5 py-4 text-[15px] leading-relaxed text-emerald-950 dark:bg-emerald-950/40 dark:text-emerald-100">
+        <div
+          className="mt-4 rounded-3xl px-5 py-4 text-[15px] leading-relaxed"
+          style={{
+            background: "var(--md-secondary-container)",
+            color: "var(--md-on-secondary-container)",
+          }}
+        >
           {reply}
           {!done && <span className="ml-0.5 inline-block animate-pulse">▌</span>}
         </div>
@@ -68,7 +71,13 @@ export function Results({
       )}
 
       {error && (
-        <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+        <div
+          className="mt-4 rounded-2xl px-4 py-3 text-sm"
+          style={{
+            background: "var(--md-error-container)",
+            color: "var(--md-on-error-container)",
+          }}
+        >
           {error}
         </div>
       )}
@@ -80,7 +89,7 @@ export function Results({
       </div>
 
       {done && listings.length === 0 && !error && (
-        <p className="mt-6 text-center text-sm text-neutral-500">
+        <p className="mt-6 text-center text-sm" style={{ color: "var(--md-on-surface-variant)" }}>
           No matching listings came back — try widening your budget, radius, or year range.
         </p>
       )}
@@ -102,10 +111,7 @@ function ProfileSummary({ profile: p }: { profile: WizardProfile }) {
   return (
     <div className="flex flex-wrap gap-1.5">
       {bits.map((b) => (
-        <span
-          key={b}
-          className="rounded-full bg-neutral-100 px-2.5 py-1 text-xs font-medium text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300"
-        >
+        <span key={b} className="md-chip" style={{ cursor: "default" }}>
           {b}
         </span>
       ))}
@@ -115,8 +121,14 @@ function ProfileSummary({ profile: p }: { profile: WizardProfile }) {
 
 function Loader({ label }: { label: string }) {
   return (
-    <div className="mt-4 flex items-center gap-2 text-sm text-neutral-500">
-      <span className="inline-block h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-500" />
+    <div
+      className="mt-4 flex items-center gap-2 text-sm"
+      style={{ color: "var(--md-on-surface-variant)" }}
+    >
+      <span
+        className="inline-block h-2.5 w-2.5 animate-pulse rounded-full"
+        style={{ background: "var(--md-primary)" }}
+      />
       {label}
     </div>
   );

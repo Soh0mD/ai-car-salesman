@@ -13,11 +13,14 @@ export function ResultsList({
   if (listings.length === 0) return null;
   return (
     <section className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-neutral-500">
-        <span className="font-semibold text-neutral-700 dark:text-neutral-300">
+      <div
+        className="flex flex-wrap items-center justify-between gap-2 text-xs"
+        style={{ color: "var(--md-on-surface-variant)" }}
+      >
+        <span className="font-semibold" style={{ color: "var(--md-on-surface)" }}>
           {listings.length} matches · best value first
           {reliabilityLoading && (
-            <span className="ml-2 font-normal text-emerald-600 dark:text-emerald-400">
+            <span className="ml-2 font-normal" style={{ color: "var(--md-primary)" }}>
               · checking recalls &amp; complaints…
             </span>
           )}
