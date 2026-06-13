@@ -166,7 +166,7 @@ function buildSteps(
               maxLength={5}
               value={p.zip_code}
               onChange={(e) => update({ zip_code: e.target.value.replace(/\D/g, "").slice(0, 5) })}
-              placeholder="46202"
+              aria-label="ZIP code"
               className="md-field mt-2 w-44 text-2xl font-bold tracking-widest"
             />
             {!zipValid && p.zip_code.length > 0 && (
