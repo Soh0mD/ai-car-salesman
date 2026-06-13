@@ -68,6 +68,7 @@ function mapListing(l: MCListing): NormalizedListing | null {
     drivetrain: l.build?.drivetrain ?? null,
     body_style: l.build?.body_type ?? null,
     recall_count: null,
+    reliability_flag: null,
     value_score: 0,
   };
 }

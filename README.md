@@ -26,6 +26,7 @@ lib/llm.ts              Claude tool-use extraction -> SearchPlan
 lib/aggregate.ts        concurrent fan-out, dedupe, NHTSA enrich, score, sort
 lib/sources/*.ts        marketcheck / ebay / autodev clients
 lib/nhtsa.ts            recall counts + VIN decode
+lib/reliability.ts      curated known-issue rules (deterministic backstop to the LLM)
 lib/limits.ts           rate-limit + cache (no-op without Upstash)
 ```
 

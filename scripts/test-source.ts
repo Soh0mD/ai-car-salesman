@@ -9,6 +9,7 @@
  */
 import { getRecallCount, decodeVin } from "../lib/nhtsa.ts";
 import { aggregate } from "../lib/aggregate.ts";
+import { checkReliability } from "../lib/reliability.ts";
 import type { SearchPlan } from "../lib/types.ts";
 
 const samplePlan: SearchPlan = {
@@ -44,6 +45,12 @@ async function main() {
   console.log("\n== NHTSA VIN decode (live) ==");
   console.log(await decodeVin("1HGCM82633A004352"));
 
+  console.log("\n== Curated reliability rules (deterministic) ==");
+  console.log("Nissan Altima 2015:", checkReliability("Nissan", "Altima", 2015));
+  console.log("Ford Focus 2014:", checkReliability("Ford", "Focus", 2014));
+  console.log("Honda CR-V 2018:", checkReliability("Honda", "CR-V", 2018));
+  console.log("Toyota RAV4 2018:", checkReliability("Toyota", "RAV4", 2018));
+
   console.log("\n== Full aggregate pipeline ==");
   const { listings, counts } = await aggregate(samplePlan);
   console.log("per-source counts:", counts);
@@ -53,6 +60,21 @@ async function main() {
   for (const l of listings.slice(0, 4)) {
     console.log(`  [${l.source}] ${l.title} | $${l.price} | recalls=${l.recall_count} | score=${l.value_score}`);
   }
+  console.log("\n== Backstop check: force a flagged model (Nissan Altima) into the search ==");
+  const nissanPlan: SearchPlan = {
+    ...samplePlan,
+    automotive_targets: {
+      ...samplePlan.automotive_targets,
+      suggested_models: [{ make: "Nissan", model: "Altima", years: { min: 2014, max: 2017 } }],
+    },
+  };
+  const nissan = await aggregate(nissanPlan);
+  const flagged = nissan.listings.filter((l) => l.reliability_flag);
+  console.log(`flagged ${flagged.length} of ${nissan.listings.length} (should be > 0 if live Altimas returned)`);
+  for (const l of flagged.slice(0, 3)) {
+    console.log(`  ${l.title} | $${l.price} | score=${l.value_score} | [${l.reliability_flag!.severity}] ${l.reliability_flag!.issue}`);
+  }
+
   const top = listings[0];
   console.log("\n== direct probe of top listing's exact fields ==");
   console.log(`make=${JSON.stringify(top?.make)} model=${JSON.stringify(top?.model)} year=${JSON.stringify(top?.year)}`);

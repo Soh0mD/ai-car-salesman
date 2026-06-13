@@ -56,6 +56,14 @@ export type SearchPlan = z.infer<typeof searchPlanSchema>;
 
 export type ListingSource = "marketcheck" | "ebay" | "autodev";
 
+export type ReliabilitySeverity = "avoid" | "caution";
+
+/** A deterministic, curated warning matched against a listing's make/model/year. */
+export interface ReliabilityFlag {
+  severity: ReliabilitySeverity;
+  issue: string;
+}
+
 /** The single shape every inventory source is normalized into. */
 export interface NormalizedListing {
   source: ListingSource;
@@ -75,6 +83,8 @@ export interface NormalizedListing {
   drivetrain: string | null;
   body_style: string | null;
   recall_count: number | null;
+  /** Curated known-issue warning for this make/model/year, if any (see lib/reliability.ts). */
+  reliability_flag: ReliabilityFlag | null;
   /** 0..100 composite of price-vs-budget, proximity, recalls, reliability match. */
   value_score: number;
 }

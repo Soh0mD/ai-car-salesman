@@ -1,5 +1,6 @@
 import type { NormalizedListing, SearchPlan } from "./types";
 import { getRecallCount } from "./nhtsa";
+import { checkReliability } from "./reliability";
 import { search as marketcheckSearch } from "./sources/marketcheck";
 import { search as ebaySearch } from "./sources/ebay";
 import { search as autodevSearch } from "./sources/autodev";
@@ -75,8 +76,12 @@ function scoreListing(l: NormalizedListing, plan: SearchPlan): number {
   if (l.recall_count != null) {
     score -= Math.min(20, l.recall_count * 4); // recall penalty
   }
+  if (l.reliability_flag) {
+    // Curated known-issue penalty: "avoid" sinks hard, "caution" dents.
+    score -= l.reliability_flag.severity === "avoid" ? 35 : 12;
+  }
   const tier = plan.automotive_targets.mechanical_filters.reliability_tier;
-  if (tier === "highest" && (l.recall_count ?? 0) === 0) score += 8;
+  if (tier === "highest" && (l.recall_count ?? 0) === 0 && !l.reliability_flag) score += 8;
 
   return Math.round(Math.max(0, Math.min(100, score)));
 }
@@ -110,6 +115,11 @@ export async function aggregate(plan: SearchPlan): Promise<AggregateResult> {
   listings.forEach((l) => (l.value_score = scoreListing(l, plan)));
   listings.sort((a, b) => b.value_score - a.value_score);
   listings = listings.slice(0, MAX_RESULTS);
+
+  // 3b) Deterministic curated reliability flags (independent of the LLM's reasoning).
+  for (const l of listings) {
+    l.reliability_flag = checkReliability(l.make, l.model, l.year);
+  }
 
   // 4) Enrich with NHTSA recall counts, de-duplicated by make/model/year so identical
   // vehicles are looked up once. Concurrency-capped to stay polite to the NHTSA API.
