@@ -25,6 +25,9 @@ export const constraintsSchema = z.object({
   min_seating_capacity: z.number().nullable().optional(),
   fuel_efficiency_priority: z.enum(["low", "medium", "high"]).nullable().optional(),
   intended_use: z.string().nullable().optional(),
+  max_mileage: z.number().nullable().optional(),
+  year_min: z.number().nullable().optional(),
+  year_max: z.number().nullable().optional(),
 });
 
 export const mechanicalFiltersSchema = z.object({
@@ -51,6 +54,27 @@ export type SuggestedModel = z.infer<typeof suggestedModelSchema>;
 export type Constraints = z.infer<typeof constraintsSchema>;
 export type AutomotiveTargets = z.infer<typeof automotiveTargetsSchema>;
 export type SearchPlan = z.infer<typeof searchPlanSchema>;
+
+/**
+ * The fixed, structured answer set collected by the guided wizard. Always the same shape,
+ * which makes results consistent and repeatable (identical profile -> identical search).
+ */
+export interface WizardProfile {
+  budget_max: number;
+  zip_code: string;
+  radius_miles: number;
+  seats: number; // minimum seating capacity
+  year_min: number;
+  year_max: number;
+  max_mileage: number;
+  primary_use: "commute" | "family" | "fun" | "first_car" | "work";
+  fuel_priority: "low" | "medium" | "high";
+  safety: number; // 1-5
+  fun: number; // 1-5
+  needs_awd: boolean;
+  body_styles: string[];
+  excluded_body_styles: string[];
+}
 
 export type ListingSource = "marketcheck" | "ebay" | "autodev";
 

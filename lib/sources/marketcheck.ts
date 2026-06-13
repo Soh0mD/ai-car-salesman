@@ -96,6 +96,7 @@ export async function search(plan: SearchPlan): Promise<NormalizedListing[]> {
       params.set("year_range", `${m.years.min}-${m.years.max}`);
     }
     if (constraints.budget_max) params.set("price_range", `0-${Math.round(constraints.budget_max)}`);
+    if (constraints.max_mileage) params.set("miles_range", `0-${Math.round(constraints.max_mileage)}`);
     if (constraints.zip_code) params.set("zip", constraints.zip_code);
     if (constraints.radius_miles) params.set("radius", String(constraints.radius_miles));
     return getJson(`${BASE}?${params.toString()}`);

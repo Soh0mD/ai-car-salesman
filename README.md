@@ -19,14 +19,23 @@ reliability-advice layer, not raw data breadth.
   **Auto.dev** (backup); **NHTSA** for recalls + VIN decode (free, keyless)
 - **Upstash Redis** (optional) for per-IP rate-limit + response cache
 
+The primary experience is a guided wizard (Landing → animated step-by-step questions →
+Results); a free-text chat is kept as an "advanced mode". The wizard's answers
+deterministically drive the search (temperature-0 extraction + profile cache) so identical
+answers give identical results.
+
 ```
-app/page.tsx            chat UI (SSE client)
-app/api/chat/route.ts   SSE endpoint: brain -> aggregate -> stream
-lib/llm.ts              Claude tool-use extraction -> SearchPlan
-lib/aggregate.ts        concurrent fan-out, dedupe, NHTSA enrich, score, sort
+app/page.tsx            stage machine: landing / wizard / results / chat (framer-motion)
+app/components/         Landing, Wizard, Results, Chat, ResultsList, ListingCard
+app/api/find/route.ts   wizard search (structured profile -> deterministic overrides)
+app/api/chat/route.ts   free-text chat search
+lib/pipeline.ts         shared: stream reply + extract plan + overrides + progressive listings
+lib/llm.ts              streamConversationalReply (text) + extractSearchPlan (tool-use)
+lib/aggregate.ts        searchAndRank (fast) + enrichListings (NHTSA), dedupe, score, sort
 lib/sources/*.ts        marketcheck / ebay / autodev clients
-lib/nhtsa.ts            recall counts + VIN decode
+lib/nhtsa.ts            recall counts + complaint stats + VIN decode
 lib/reliability.ts      curated known-issue rules (deterministic backstop to the LLM)
+lib/search-client.ts    client-side SSE consumption
 lib/limits.ts           rate-limit + cache (no-op without Upstash)
 ```
 

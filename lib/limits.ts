@@ -25,6 +25,12 @@ const ratelimiter = redis
     })
   : null;
 
+/** Best-effort client IP from proxy headers (for per-IP rate limiting). */
+export function clientIp(req: { headers: Headers }): string {
+  const fwd = req.headers.get("x-forwarded-for");
+  return fwd?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "anonymous";
+}
+
 /** Returns true if the request is allowed. No-op (always allowed) without Upstash. */
 export async function checkRateLimit(ip: string): Promise<boolean> {
   if (!ratelimiter) return true;

@@ -154,6 +154,7 @@ export async function extractSearchPlan(messages: ChatMessage[]): Promise<Search
   const response = await client.messages.create({
     model: MODEL,
     max_tokens: 1000,
+    temperature: 0, // deterministic extraction -> repeatable model picks for identical input
     system: EXTRACT_SYSTEM_PROMPT,
     tools: [SEARCH_PLAN_TOOL],
     tool_choice: { type: "tool", name: SEARCH_PLAN_TOOL.name },

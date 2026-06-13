@@ -113,9 +113,17 @@ export async function searchAndRank(plan: SearchPlan): Promise<AggregateResult> 
     merged = merged.concat(items);
   });
 
-  // Dedupe across sources, then drop explicitly-excluded body styles.
+  // Dedupe across sources, then drop excluded body styles + out-of-range year/mileage.
   const excluded = plan.automotive_targets.excluded_body_styles;
-  let listings = dedupe(merged).filter((l) => !matchesExcludedBodyStyle(l, excluded));
+  const { year_min, year_max, max_mileage } = plan.constraints;
+  let listings = dedupe(merged).filter((l) => {
+    if (matchesExcludedBodyStyle(l, excluded)) return false;
+    // Only filter when the listing actually reports the field (don't drop unknowns).
+    if (year_min && l.year && l.year < year_min) return false;
+    if (year_max && l.year && l.year > year_max) return false;
+    if (max_mileage && l.mileage && l.mileage > max_mileage) return false;
+    return true;
+  });
 
   // Deterministic curated reliability flags (instant, in-memory — no network).
   for (const l of listings) {

@@ -1,10 +1,8 @@
 import { NextRequest } from "next/server";
-import type { ChatMessage } from "@/lib/llm";
-import { runConversationalSearch, sseResponse } from "@/lib/pipeline";
+import { runConversationalSearch, sseResponse, briefFromProfile } from "@/lib/pipeline";
 import { checkRateLimit, cacheGet, cacheSet, planCacheKey, clientIp } from "@/lib/limits";
-import type { NormalizedListing } from "@/lib/types";
+import type { NormalizedListing, WizardProfile } from "@/lib/types";
 
-// The Anthropic SDK needs the Node runtime (not edge). SSE works fine on Vercel node functions.
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
@@ -14,28 +12,26 @@ interface CachedResponse {
   counts: Record<string, number>;
 }
 
-/** Free-text chat (the "advanced mode"). The wizard uses /api/find. */
+/** Structured wizard search. The profile deterministically drives constraints (repeatable). */
 export async function POST(req: NextRequest) {
-  let messages: ChatMessage[];
+  let profile: WizardProfile;
   try {
-    const body = (await req.json()) as { messages?: ChatMessage[] };
-    messages = body.messages ?? [];
+    const body = (await req.json()) as { profile?: WizardProfile };
+    if (!body.profile?.zip_code || !body.profile.budget_max) {
+      return new Response("Missing required profile fields", { status: 400 });
+    }
+    profile = body.profile;
   } catch {
     return new Response("Invalid JSON body", { status: 400 });
   }
-  if (messages.length === 0) {
-    return new Response("No messages provided", { status: 400 });
-  }
 
-  // Cost cap #1: per-IP rate limit. Worst case for an abuser is a 429, never a bill.
   if (!(await checkRateLimit(clientIp(req)))) {
     return new Response("Rate limit exceeded. Please slow down.", { status: 429 });
   }
 
   return sseResponse(async (send) => {
-    // Cost cap #2: cache identical conversations so we never re-bill Claude or the inventory
-    // APIs. Only distilled constraints go downstream — raw history stays in the LLM layer.
-    const cacheKey = planCacheKey({ messages });
+    // Identical profile -> identical cached result (repeatability + cost cap).
+    const cacheKey = planCacheKey({ profile });
     const cached = await cacheGet<CachedResponse>(cacheKey);
     if (cached) {
       send("reply_delta", { text: cached.reply });
@@ -44,7 +40,8 @@ export async function POST(req: NextRequest) {
       return;
     }
 
-    const { replyText, listings, counts } = await runConversationalSearch(messages, send);
+    const messages = [{ role: "user" as const, content: briefFromProfile(profile) }];
+    const { replyText, listings, counts } = await runConversationalSearch(messages, send, profile);
     await cacheSet(cacheKey, { reply: replyText, listings, counts } satisfies CachedResponse);
     send("done", {});
   });
