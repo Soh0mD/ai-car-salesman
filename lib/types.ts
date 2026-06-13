@@ -1,0 +1,80 @@
+import { z } from "zod";
+
+/**
+ * Core data contracts that bridge the conversational AI and the data-aggregation layer.
+ * The LLM fills `SearchPlan` via tool-use (guaranteeing valid JSON); every inventory
+ * source normalizes its results into `NormalizedListing`.
+ */
+
+export const yearRangeSchema = z.object({
+  min: z.number().int(),
+  max: z.number().int(),
+});
+
+export const suggestedModelSchema = z.object({
+  make: z.string(),
+  model: z.string(),
+  years: yearRangeSchema,
+});
+
+export const constraintsSchema = z.object({
+  budget_max: z.number().nullable().optional(),
+  budget_min: z.number().nullable().optional(),
+  zip_code: z.string().nullable().optional(),
+  radius_miles: z.number().nullable().optional(),
+  min_seating_capacity: z.number().nullable().optional(),
+  fuel_efficiency_priority: z.enum(["low", "medium", "high"]).nullable().optional(),
+  intended_use: z.string().nullable().optional(),
+});
+
+export const mechanicalFiltersSchema = z.object({
+  reliability_tier: z.enum(["any", "high", "highest"]).nullable().optional(),
+  preferred_drivetrains: z.array(z.string()).default([]),
+  // Known failure-prone powertrains to avoid, e.g. "early Nissan CVT", "dry-clutch DCT".
+  excluded_powertrains: z.array(z.string()).default([]),
+});
+
+export const automotiveTargetsSchema = z.object({
+  body_styles: z.array(z.string()).default([]),
+  excluded_body_styles: z.array(z.string()).default([]),
+  suggested_models: z.array(suggestedModelSchema).default([]),
+  mechanical_filters: mechanicalFiltersSchema,
+});
+
+export const searchPlanSchema = z.object({
+  // Conversational message shown in the chat UI (advice + why these picks).
+  conversational_reply: z.string(),
+  constraints: constraintsSchema,
+  automotive_targets: automotiveTargetsSchema,
+});
+
+export type YearRange = z.infer<typeof yearRangeSchema>;
+export type SuggestedModel = z.infer<typeof suggestedModelSchema>;
+export type Constraints = z.infer<typeof constraintsSchema>;
+export type AutomotiveTargets = z.infer<typeof automotiveTargetsSchema>;
+export type SearchPlan = z.infer<typeof searchPlanSchema>;
+
+export type ListingSource = "marketcheck" | "ebay" | "autodev";
+
+/** The single shape every inventory source is normalized into. */
+export interface NormalizedListing {
+  source: ListingSource;
+  title: string;
+  year: number | null;
+  make: string | null;
+  model: string | null;
+  trim: string | null;
+  price: number | null;
+  mileage: number | null;
+  vin: string | null;
+  zip: string | null;
+  distance_miles: number | null;
+  image_url: string | null;
+  listing_url: string;
+  dealer_name: string | null;
+  drivetrain: string | null;
+  body_style: string | null;
+  recall_count: number | null;
+  /** 0..100 composite of price-vs-budget, proximity, recalls, reliability match. */
+  value_score: number;
+}
