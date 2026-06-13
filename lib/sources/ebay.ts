@@ -88,6 +88,7 @@ function mapItem(item: EbayItem, hint: SuggestedModel | null): NormalizedListing
     drivetrain: null,
     body_style: null,
     recall_count: null,
+    complaints: null,
     reliability_flag: null,
     value_score: 0,
   };

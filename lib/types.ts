@@ -83,6 +83,8 @@ export interface NormalizedListing {
   drivetrain: string | null;
   body_style: string | null;
   recall_count: number | null;
+  /** Live NHTSA consumer-complaint volume (total + powertrain subset), null if unavailable. */
+  complaints: { total: number; powertrain: number } | null;
   /** Curated known-issue warning for this make/model/year, if any (see lib/reliability.ts). */
   reliability_flag: ReliabilityFlag | null;
   /** 0..100 composite of price-vs-budget, proximity, recalls, reliability match. */

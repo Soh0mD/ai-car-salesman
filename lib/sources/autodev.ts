@@ -58,6 +58,7 @@ function mapRecord(r: AutoDevRecord): NormalizedListing | null {
     drivetrain: v.drivetrain ?? null,
     body_style: v.bodyStyle ?? null,
     recall_count: null,
+    complaints: null,
     reliability_flag: null,
     value_score: 0,
   };

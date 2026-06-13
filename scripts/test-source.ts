@@ -58,7 +58,8 @@ async function main() {
   const nulls = listings.filter((l) => l.recall_count === null).length;
   console.log(`recall_count null: ${nulls} of ${listings.length}`);
   for (const l of listings.slice(0, 4)) {
-    console.log(`  [${l.source}] ${l.title} | $${l.price} | recalls=${l.recall_count} | score=${l.value_score}`);
+    const c = l.complaints ? `${l.complaints.total}c/${l.complaints.powertrain}pt` : "none";
+    console.log(`  [${l.source}] ${l.title} | $${l.price} | recalls=${l.recall_count} | complaints=${c} | score=${l.value_score}`);
   }
   console.log("\n== Backstop check: force a flagged model (Nissan Altima) into the search ==");
   const nissanPlan: SearchPlan = {

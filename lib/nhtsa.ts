@@ -4,6 +4,7 @@
  */
 
 const RECALLS_BASE = "https://api.nhtsa.gov/recalls/recallsByVehicle";
+const COMPLAINTS_BASE = "https://api.nhtsa.gov/complaints/complaintsByVehicle";
 const VPIC_DECODE = "https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues";
 
 // NHTSA is occasionally slow on a cold combo. Recall data is best-effort enrichment, so
@@ -53,6 +54,64 @@ export async function getRecallCount(
         : 0;
   recallCache.set(key, count);
   return count;
+}
+
+export interface ComplaintStats {
+  total: number;
+  /** Complaints whose component touches the drivetrain — the chronic-reliability signal. */
+  powertrain: number;
+}
+
+// Complaint payloads can be large (thousands of records), so allow a little more time.
+const COMPLAINTS_TIMEOUT_MS = 7000;
+const complaintsCache = new Map<string, ComplaintStats | null>();
+
+interface ComplaintRecord {
+  components?: string;
+}
+
+/**
+ * Consumer-complaint volume for a make/model/year, with the powertrain/engine subset broken
+ * out. Dynamic and available for every consumer vehicle (no curation). Note: raw counts are
+ * volume-biased by sales, so treat as a signal, not a verdict — see lib/reliability.ts for the
+ * curated precision layer that catches known-bad designs the raw numbers bury.
+ */
+export async function getComplaintStats(
+  make: string,
+  model: string,
+  year: number,
+): Promise<ComplaintStats | null> {
+  const key = `${make}|${model}|${year}`.toLowerCase();
+  const cached = complaintsCache.get(key);
+  if (cached !== undefined) return cached;
+
+  const url = `${COMPLAINTS_BASE}?make=${encodeURIComponent(make)}&model=${encodeURIComponent(
+    model,
+  )}&modelYear=${year}`;
+
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), COMPLAINTS_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal, cache: "no-store" });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { Count?: number; results?: ComplaintRecord[] };
+    const results = data.results ?? [];
+    let powertrain = 0;
+    for (const r of results) {
+      const c = r.components?.toUpperCase() ?? "";
+      if (c.includes("POWER TRAIN") || c.includes("ENGINE")) powertrain++;
+    }
+    const stats: ComplaintStats = {
+      total: typeof data.Count === "number" ? data.Count : results.length,
+      powertrain,
+    };
+    complaintsCache.set(key, stats);
+    return stats;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(t);
+  }
 }
 
 export interface VinFacts {

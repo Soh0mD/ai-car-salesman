@@ -1,5 +1,5 @@
 import type { NormalizedListing, SearchPlan } from "./types";
-import { getRecallCount } from "./nhtsa";
+import { getRecallCount, getComplaintStats, type ComplaintStats } from "./nhtsa";
 import { checkReliability } from "./reliability";
 import { search as marketcheckSearch } from "./sources/marketcheck";
 import { search as ebaySearch } from "./sources/ebay";
@@ -76,6 +76,11 @@ function scoreListing(l: NormalizedListing, plan: SearchPlan): number {
   if (l.recall_count != null) {
     score -= Math.min(20, l.recall_count * 4); // recall penalty
   }
+  if (l.complaints) {
+    // Gentle, capped nudge from powertrain/engine complaint volume (raw counts are
+    // volume-biased, so keep this light — the curated flag handles confident calls).
+    score -= Math.min(12, l.complaints.powertrain / 40);
+  }
   if (l.reliability_flag) {
     // Curated known-issue penalty: "avoid" sinks hard, "caution" dents.
     score -= l.reliability_flag.severity === "avoid" ? 35 : 12;
@@ -129,12 +134,21 @@ export async function aggregate(plan: SearchPlan): Promise<AggregateResult> {
     if (l.make && l.model && l.year) uniqueCombos.set(comboKey(l), l);
   }
   const recallByCombo = new Map<string, number | null>();
+  const complaintsByCombo = new Map<string, ComplaintStats | null>();
   await runPooled([...uniqueCombos], NHTSA_CONCURRENCY, async ([key, l]) => {
-    recallByCombo.set(key, await getRecallCount(l.make!, l.model!, l.year!));
+    const [recalls, complaints] = await Promise.all([
+      getRecallCount(l.make!, l.model!, l.year!),
+      getComplaintStats(l.make!, l.model!, l.year!),
+    ]);
+    recallByCombo.set(key, recalls);
+    complaintsByCombo.set(key, complaints);
   });
   for (const l of listings) {
-    const r = recallByCombo.get(comboKey(l));
+    const key = comboKey(l);
+    const r = recallByCombo.get(key);
     if (r !== undefined) l.recall_count = r;
+    const c = complaintsByCombo.get(key);
+    if (c !== undefined) l.complaints = c;
   }
 
   // 5) Re-score (enriched listings now factor in recalls) and produce the final order.

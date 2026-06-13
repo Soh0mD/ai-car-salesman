@@ -62,6 +62,12 @@ export function ListingCard({ listing: l }: { listing: NormalizedListing }) {
                 {l.recall_count} recall{l.recall_count === 1 ? "" : "s"}
               </Badge>
             ))}
+          {l.complaints && l.complaints.total > 0 && (
+            <Badge tone={l.complaints.powertrain >= 150 ? "warn" : "neutral"}>
+              {l.complaints.total} complaints
+              {l.complaints.powertrain > 0 ? ` · ${l.complaints.powertrain} powertrain` : ""}
+            </Badge>
+          )}
         </div>
 
         {l.reliability_flag && (
