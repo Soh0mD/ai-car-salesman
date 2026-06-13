@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { buildSearchPlan, type ChatMessage } from "@/lib/llm";
+import { streamConversationalReply, extractSearchPlan, type ChatMessage } from "@/lib/llm";
 import { searchAndRank, enrichListings } from "@/lib/aggregate";
 import { checkRateLimit, cacheGet, cacheSet, planCacheKey } from "@/lib/limits";
 import type { NormalizedListing } from "@/lib/types";
@@ -50,31 +50,31 @@ export async function POST(req: NextRequest) {
         const cacheKey = planCacheKey({ messages });
         const cached = await cacheGet<CachedResponse>(cacheKey);
         if (cached) {
-          send("reply", { text: cached.reply });
+          send("reply_delta", { text: cached.reply });
           send("listings", { listings: cached.listings, counts: cached.counts, enriched: true });
           send("done", {});
           controller.close();
           return;
         }
 
-        // 1) Conversational brain -> validated search plan.
-        const plan = await buildSearchPlan(messages);
-        send("reply", { text: plan.conversational_reply });
+        // 1) Fire the streaming reply AND the structured extraction concurrently. The reply
+        //    streams to the user in ~1-2s while the plan is still being extracted.
+        const replyPromise = streamConversationalReply(messages, (delta) =>
+          send("reply_delta", { text: delta }),
+        );
+        const plan = await extractSearchPlan(messages);
         send("plan", { constraints: plan.constraints, targets: plan.automotive_targets });
 
-        // 2) Progressive delivery: show cards as soon as inventory returns (fast, ~2-3s),
-        //    then stream the same listings back enriched with NHTSA recall/complaint data.
+        // 2) Progressive delivery: show cards as soon as inventory returns, then re-stream
+        //    them enriched with NHTSA recall/complaint data (non-blocking for the user).
         const { listings, counts } = await searchAndRank(plan);
         send("listings", { listings, counts, enriched: false });
 
         await enrichListings(listings, plan); // mutates + re-sorts in place
         send("listings", { listings, counts, enriched: true });
 
-        await cacheSet(cacheKey, {
-          reply: plan.conversational_reply,
-          listings,
-          counts,
-        } satisfies CachedResponse);
+        const replyText = await replyPromise; // usually already resolved by now
+        await cacheSet(cacheKey, { reply: replyText, listings, counts } satisfies CachedResponse);
 
         send("done", {});
       } catch (err) {

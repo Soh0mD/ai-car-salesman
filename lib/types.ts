@@ -42,8 +42,6 @@ export const automotiveTargetsSchema = z.object({
 });
 
 export const searchPlanSchema = z.object({
-  // Conversational message shown in the chat UI (advice + why these picks).
-  conversational_reply: z.string(),
   constraints: constraintsSchema,
   automotive_targets: automotiveTargetsSchema,
 });

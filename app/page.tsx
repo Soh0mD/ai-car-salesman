@@ -79,10 +79,18 @@ export default function Home() {
 
   function handleEvent(event: string, data: Record<string, unknown>) {
     switch (event) {
-      case "reply":
-        setMessages((m) => [...m, { role: "assistant", content: data.text as string }]);
+      case "reply_delta": {
+        const delta = data.text as string;
+        setMessages((m) => {
+          const last = m[m.length - 1];
+          if (last?.role === "assistant") {
+            return [...m.slice(0, -1), { ...last, content: last.content + delta }];
+          }
+          return [...m, { role: "assistant", content: delta }];
+        });
         setStatus("searching");
         break;
+      }
       case "listings":
         setListings((data.listings as NormalizedListing[]) ?? []);
         setCounts((data.counts as Record<string, number>) ?? null);

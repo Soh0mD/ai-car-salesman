@@ -13,7 +13,6 @@ import { checkReliability } from "../lib/reliability.ts";
 import type { SearchPlan } from "../lib/types.ts";
 
 const samplePlan: SearchPlan = {
-  conversational_reply: "test",
   constraints: {
     budget_max: 25000,
     zip_code: "46202",
