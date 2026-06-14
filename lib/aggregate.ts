@@ -153,7 +153,17 @@ export async function searchAndRank(plan: SearchPlan): Promise<AggregateResult> 
   const excluded = plan.automotive_targets.excluded_body_styles;
   const preferredDrive = plan.automotive_targets.mechanical_filters.preferred_drivetrains;
   const { year_min, year_max, max_mileage, transmission, fuel_type, cylinders } = plan.constraints;
-  let listings = dedupe(merged).filter((l) => {
+  let listings = dedupe(merged);
+  // Sanitize implausible odometers: some feeds report fuel RANGE (e.g. 426 mi) in the mileage
+  // field. A used car 4+ model years old can't realistically have under 1,000 miles, so treat
+  // such values as unknown rather than display a wrong (and misleadingly low) number.
+  const nowYear = new Date().getFullYear();
+  for (const s of listings) {
+    if (s.mileage != null && s.mileage < 1000 && s.year && nowYear - s.year >= 4) {
+      s.mileage = null;
+    }
+  }
+  listings = listings.filter((l) => {
     if (matchesExcludedBodyStyle(l, excluded)) return false;
     // Only filter when the listing actually reports the field (don't drop unknowns).
     if (year_min && l.year && l.year < year_min) return false;
