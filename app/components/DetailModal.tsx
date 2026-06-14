@@ -168,6 +168,25 @@ export function DetailModal({
           >
             View original listing ↗
           </a>
+          <a
+            href={`https://www.google.com/search?q=${encodeURIComponent(
+              [l.year, l.make, l.model, l.trim].filter(Boolean).join(" ") +
+                (l.vin ? ` ${l.vin}` : "") +
+                " for sale",
+            )}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="md-btn md-btn-tonal mt-2 w-full"
+          >
+            🔍 Search the web for this car
+          </a>
+          <p
+            className="mt-2 text-center text-xs"
+            style={{ color: "var(--md-on-surface-variant)" }}
+          >
+            Used listings sell fast — if the original is gone, the search above will find it (or
+            one just like it).
+          </p>
         </div>
       </motion.div>
     </motion.div>
