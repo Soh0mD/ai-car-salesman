@@ -62,6 +62,21 @@ function transmissionMatches(t: string | null, want: "manual" | "automatic" | nu
   return want === "manual" ? isManual : !isManual;
 }
 
+/** True if the listing's fuel type satisfies the preference (unknowns are kept). */
+function fuelMatches(f: string | null, want: string | null | undefined): boolean {
+  if (!want || !f) return true;
+  const ff = f.toLowerCase();
+  if (want === "gas") return !/(electric|hybrid|diesel)/.test(ff);
+  if (want === "electric") return ff.includes("electric") && !ff.includes("hybrid");
+  return ff.includes(want); // hybrid | diesel
+}
+
+/** True if the listing's cylinder count matches the preference (0/unknown are kept). */
+function cylindersMatches(c: number | null, want: number | null | undefined): boolean {
+  if (!want || c == null) return true;
+  return c === want;
+}
+
 /** True if the listing's drivetrain satisfies any preferred drivetrain (unknowns are kept). */
 function drivetrainMatches(d: string | null, preferred: string[]): boolean {
   if (preferred.length === 0 || !d) return true;
@@ -137,7 +152,7 @@ export async function searchAndRank(plan: SearchPlan): Promise<AggregateResult> 
   // Dedupe across sources, then drop excluded body styles + out-of-range year/mileage.
   const excluded = plan.automotive_targets.excluded_body_styles;
   const preferredDrive = plan.automotive_targets.mechanical_filters.preferred_drivetrains;
-  const { year_min, year_max, max_mileage, transmission } = plan.constraints;
+  const { year_min, year_max, max_mileage, transmission, fuel_type, cylinders } = plan.constraints;
   let listings = dedupe(merged).filter((l) => {
     if (matchesExcludedBodyStyle(l, excluded)) return false;
     // Only filter when the listing actually reports the field (don't drop unknowns).
@@ -146,6 +161,8 @@ export async function searchAndRank(plan: SearchPlan): Promise<AggregateResult> 
     if (max_mileage && l.mileage && l.mileage > max_mileage) return false;
     if (!transmissionMatches(l.transmission, transmission)) return false;
     if (!drivetrainMatches(l.drivetrain, preferredDrive)) return false;
+    if (!fuelMatches(l.fuel_type, fuel_type)) return false;
+    if (!cylindersMatches(l.cylinders, cylinders)) return false;
     return true;
   });
 

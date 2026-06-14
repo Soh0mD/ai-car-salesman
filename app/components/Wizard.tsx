@@ -20,6 +20,9 @@ const DEFAULT_PROFILE: WizardProfile = {
   fun: 3,
   drivetrain: "any",
   transmission: "any",
+  fuel: "any",
+  cylinders: 0,
+  keywords: "",
   body_styles: [],
   excluded_body_styles: [],
 };
@@ -348,6 +351,51 @@ function buildSteps(
         </div>
       ),
     },
+    {
+      title: "For the enthusiasts (optional)",
+      subtitle: "Skip if you don't care — otherwise dial it in.",
+      canNext: true,
+      body: (
+        <div className="space-y-6">
+          <div>
+            <Label>Fuel type</Label>
+            <SingleChips
+              value={p.fuel}
+              onChange={(v) => update({ fuel: v as WizardProfile["fuel"] })}
+              options={[
+                { value: "any", label: "Any" },
+                { value: "gas", label: "Gas" },
+                { value: "hybrid", label: "Hybrid" },
+                { value: "electric", label: "Electric" },
+                { value: "diesel", label: "Diesel" },
+              ]}
+            />
+          </div>
+          <div>
+            <Label>Cylinders</Label>
+            <SingleChips
+              value={String(p.cylinders)}
+              onChange={(v) => update({ cylinders: Number(v) })}
+              options={[
+                { value: "0", label: "Any" },
+                { value: "4", label: "4-cyl" },
+                { value: "6", label: "6-cyl" },
+                { value: "8", label: "V8" },
+              ]}
+            />
+          </div>
+          <div>
+            <Label>Must-have keyword</Label>
+            <input
+              value={p.keywords}
+              onChange={(e) => update({ keywords: e.target.value })}
+              placeholder="e.g. supercharged, Z51, Nismo"
+              className="md-field mt-1 w-full text-sm"
+            />
+          </div>
+        </div>
+      ),
+    },
   ];
 }
 
@@ -475,6 +523,32 @@ function Rating({
           </motion.button>
         ))}
       </div>
+    </div>
+  );
+}
+
+function SingleChips({
+  options,
+  value,
+  onChange,
+}: {
+  options: { value: string; label: string }[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2.5">
+      {options.map((o) => (
+        <motion.button
+          key={o.value}
+          onClick={() => onChange(o.value)}
+          whileTap={{ scale: 0.95 }}
+          className="md-chip"
+          data-selected={o.value === value}
+        >
+          {o.label}
+        </motion.button>
+      ))}
     </div>
   );
 }

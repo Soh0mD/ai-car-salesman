@@ -60,6 +60,9 @@ export function briefFromProfile(p: WizardProfile): string {
     `On a 1-5 scale, safety matters ${p.safety}/5 and fun-to-drive matters ${p.fun}/5.`,
     p.drivetrain !== "any" ? `I want ${p.drivetrain.toUpperCase()} drivetrain.` : "",
     p.transmission !== "any" ? `I want a ${p.transmission} transmission.` : "",
+    p.fuel !== "any" ? `Fuel type: ${p.fuel}.` : "",
+    p.cylinders ? `${p.cylinders} cylinders.` : "",
+    p.keywords.trim() ? `Must mention: ${p.keywords.trim()}.` : "",
     p.body_styles.length ? `Preferred body styles: ${p.body_styles.join(", ")}.` : "",
     p.excluded_body_styles.length ? `Do not include: ${p.excluded_body_styles.join(", ")}.` : "",
   ]
@@ -79,6 +82,9 @@ function applyProfileOverrides(plan: SearchPlan, p: WizardProfile): void {
     year_min: p.year_min,
     year_max: p.year_max,
     transmission: p.transmission === "any" ? null : p.transmission,
+    fuel_type: p.fuel === "any" ? null : p.fuel,
+    cylinders: p.cylinders || null,
+    keywords: p.keywords.trim() || null,
   });
   // Drivetrain preference: AWD also accepts 4WD; FWD/RWD are exact.
   const driveMap: Record<WizardProfile["drivetrain"], string[]> = {

@@ -25,6 +25,8 @@ interface AutoDevRecord {
     bodyStyle?: string;
     drivetrain?: string;
     transmission?: string;
+    fuel?: string;
+    cylinders?: number;
   };
   retailListing?: {
     price?: number;
@@ -54,10 +56,13 @@ function mapRecord(r: AutoDevRecord): NormalizedListing | null {
     zip: null,
     distance_miles: null,
     image_url: rl.primaryImage ?? null,
+    images: rl.primaryImage ? [rl.primaryImage] : [],
     listing_url: rl.vdp,
     dealer_name: rl.dealer ?? null,
     drivetrain: v.drivetrain ?? null,
     transmission: v.transmission ?? null,
+    fuel_type: v.fuel ?? null,
+    cylinders: typeof v.cylinders === "number" ? v.cylinders : null,
     body_style: v.bodyStyle ?? null,
     recall_count: null,
     complaints: null,

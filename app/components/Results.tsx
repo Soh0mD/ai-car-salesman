@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import type { NormalizedListing, WizardProfile } from "@/lib/types";
 import { runWizardSearch } from "@/lib/search-client";
 import { ResultsList } from "./ResultsList";
+import { DetailModal } from "./DetailModal";
 
 export function Results({
   profile,
@@ -21,6 +22,7 @@ export function Results({
   const [reliabilityLoading, setReliabilityLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [selected, setSelected] = useState<NormalizedListing | null>(null);
   const started = useRef(false);
 
   useEffect(() => {
@@ -107,8 +109,17 @@ export function Results({
       {searching && <Loader label="Searching live inventory…" />}
 
       <div className="mt-6">
-        <ResultsList listings={listings} counts={counts} reliabilityLoading={reliabilityLoading} />
+        <ResultsList
+          listings={listings}
+          counts={counts}
+          reliabilityLoading={reliabilityLoading}
+          onSelect={setSelected}
+        />
       </div>
+
+      <AnimatePresence>
+        {selected && <DetailModal listing={selected} onClose={() => setSelected(null)} />}
+      </AnimatePresence>
 
       {done && listings.length === 0 && !error && (
         <p className="mt-6 text-center text-sm" style={{ color: "var(--md-on-surface-variant)" }}>
@@ -128,6 +139,9 @@ function ProfileSummary({ profile: p }: { profile: WizardProfile }) {
     `<${(p.max_mileage / 1000).toFixed(0)}k mi`,
     p.drivetrain !== "any" ? p.drivetrain.toUpperCase() : null,
     p.transmission !== "any" ? p.transmission : null,
+    p.fuel !== "any" ? p.fuel : null,
+    p.cylinders ? `${p.cylinders}-cyl` : null,
+    p.keywords.trim() ? `"${p.keywords.trim()}"` : null,
     ...p.body_styles,
   ].filter(Boolean) as string[];
   return (

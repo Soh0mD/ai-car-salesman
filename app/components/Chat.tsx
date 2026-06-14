@@ -1,9 +1,11 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { AnimatePresence } from "framer-motion";
 import type { NormalizedListing } from "@/lib/types";
 import { runChatSearch, type ChatMessage } from "@/lib/search-client";
 import { ResultsList } from "./ResultsList";
+import { DetailModal } from "./DetailModal";
 
 export function Chat({ onHome }: { onHome: () => void }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -13,6 +15,7 @@ export function Chat({ onHome }: { onHome: () => void }) {
   const [reliabilityLoading, setReliabilityLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<NormalizedListing | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   async function submit(text: string) {
@@ -96,8 +99,17 @@ export function Chat({ onHome }: { onHome: () => void }) {
           </div>
         )}
 
-        <ResultsList listings={listings} counts={counts} reliabilityLoading={reliabilityLoading} />
+        <ResultsList
+          listings={listings}
+          counts={counts}
+          reliabilityLoading={reliabilityLoading}
+          onSelect={setSelected}
+        />
       </div>
+
+      <AnimatePresence>
+        {selected && <DetailModal listing={selected} onClose={() => setSelected(null)} />}
+      </AnimatePresence>
 
       <form
         onSubmit={(e) => {

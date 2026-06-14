@@ -35,13 +35,18 @@ function Badge({ children, tone = "neutral" }: { children: React.ReactNode; tone
   );
 }
 
-export function ListingCard({ listing: l }: { listing: NormalizedListing }) {
+export function ListingCard({
+  listing: l,
+  onSelect,
+}: {
+  listing: NormalizedListing;
+  onSelect: (listing: NormalizedListing) => void;
+}) {
   return (
-    <a
-      href={l.listing_url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="md-card md-card-outlined md-card-link flex gap-4 p-3"
+    <button
+      type="button"
+      onClick={() => onSelect(l)}
+      className="md-card md-card-outlined md-card-link flex w-full gap-4 p-3 text-left"
     >
       <div
         className="h-24 w-32 shrink-0 overflow-hidden rounded-2xl"
@@ -112,6 +117,6 @@ export function ListingCard({ listing: l }: { listing: NormalizedListing }) {
           </p>
         )}
       </div>
-    </a>
+    </button>
   );
 }

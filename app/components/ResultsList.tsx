@@ -5,10 +5,12 @@ export function ResultsList({
   listings,
   counts,
   reliabilityLoading,
+  onSelect,
 }: {
   listings: NormalizedListing[];
   counts: Record<string, number> | null;
   reliabilityLoading: boolean;
+  onSelect: (listing: NormalizedListing) => void;
 }) {
   if (listings.length === 0) return null;
   return (
@@ -35,7 +37,7 @@ export function ResultsList({
         )}
       </div>
       {listings.map((l, i) => (
-        <ListingCard key={`${l.listing_url}-${i}`} listing={l} />
+        <ListingCard key={`${l.listing_url}-${i}`} listing={l} onSelect={onSelect} />
       ))}
     </section>
   );

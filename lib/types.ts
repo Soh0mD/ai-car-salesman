@@ -29,6 +29,9 @@ export const constraintsSchema = z.object({
   year_min: z.number().nullable().optional(),
   year_max: z.number().nullable().optional(),
   transmission: z.enum(["manual", "automatic"]).nullable().optional(),
+  fuel_type: z.enum(["gas", "hybrid", "electric", "diesel"]).nullable().optional(),
+  cylinders: z.number().nullable().optional(),
+  keywords: z.string().nullable().optional(),
 });
 
 export const mechanicalFiltersSchema = z.object({
@@ -74,6 +77,9 @@ export interface WizardProfile {
   fun: number; // 1-5
   drivetrain: "any" | "awd" | "fwd" | "rwd";
   transmission: "any" | "automatic" | "manual";
+  fuel: "any" | "gas" | "hybrid" | "electric" | "diesel";
+  cylinders: number; // 0 = any
+  keywords: string;
   body_styles: string[];
   excluded_body_styles: string[];
 }
@@ -102,10 +108,13 @@ export interface NormalizedListing {
   zip: string | null;
   distance_miles: number | null;
   image_url: string | null;
+  images: string[]; // full photo set, for the in-site detail view
   listing_url: string;
   dealer_name: string | null;
   drivetrain: string | null;
   transmission: string | null;
+  fuel_type: string | null;
+  cylinders: number | null;
   body_style: string | null;
   recall_count: number | null;
   /** Live NHTSA consumer-complaint volume (total + powertrain subset), null if unavailable. */

@@ -30,6 +30,8 @@ interface MCListing {
     trim?: string;
     drivetrain?: string;
     transmission?: string;
+    fuel_type?: string;
+    cylinders?: number;
     body_type?: string;
   };
   media?: { photo_links?: string[] };
@@ -64,10 +66,13 @@ function mapListing(l: MCListing): NormalizedListing | null {
     zip: null,
     distance_miles: typeof l.dist === "number" ? Math.round(l.dist) : null,
     image_url: l.media?.photo_links?.[0] ?? null,
+    images: l.media?.photo_links ?? [],
     listing_url: l.vdp_url,
     dealer_name: l.dealer?.name ?? null,
     drivetrain: l.build?.drivetrain ?? null,
     transmission: l.build?.transmission ?? null,
+    fuel_type: l.build?.fuel_type ?? null,
+    cylinders: typeof l.build?.cylinders === "number" ? l.build.cylinders : null,
     body_style: l.build?.body_type ?? null,
     recall_count: null,
     complaints: null,
@@ -106,6 +111,18 @@ export async function search(plan: SearchPlan): Promise<NormalizedListing[]> {
     // (RWD/FWD are rare enough that filtering at the source actually surfaces them).
     const preferred = automotive_targets.mechanical_filters.preferred_drivetrains;
     if (preferred.length === 1) params.set("drivetrain", preferred[0]);
+    // Enthusiast filters (verified Marketcheck params). "gas" has no single token, so it's
+    // left to the post-filter; electric/hybrid/diesel map directly.
+    const fuelToken: Record<string, string> = {
+      electric: "Electric",
+      hybrid: "Hybrid",
+      diesel: "Diesel",
+    };
+    if (constraints.fuel_type && fuelToken[constraints.fuel_type]) {
+      params.set("fuel_type", fuelToken[constraints.fuel_type]);
+    }
+    if (constraints.cylinders) params.set("cylinders", String(constraints.cylinders));
+    if (constraints.keywords) params.set("keyword", constraints.keywords);
     if (constraints.zip_code) params.set("zip", constraints.zip_code);
     if (constraints.radius_miles) params.set("radius", String(constraints.radius_miles));
     return getJson(`${BASE}?${params.toString()}`);

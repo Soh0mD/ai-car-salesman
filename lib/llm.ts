@@ -10,9 +10,10 @@ import { searchPlanSchema, type SearchPlan } from "./types";
  * downstream to the inventory APIs.
  */
 
-// Sonnet 4.6 is the sweet spot here: fast, cheap, reliable JSON.
+// Haiku 4.5 keeps cost low (~5x cheaper than Sonnet) — structured tool-use extraction and
+// short conversational replies don't need a larger model here.
 // (`claude-4.7-opus` from the original spec does not exist.)
-const MODEL = "claude-sonnet-4-6";
+const MODEL = "claude-haiku-4-5";
 
 // Shared domain knowledge, used by both calls so the advice and the search stay consistent.
 const DOMAIN_RULES = `DOMAIN RULES — apply these proactively, the user will not know to ask:
@@ -35,6 +36,9 @@ ${DOMAIN_RULES}
 Tool field guidance:
 - min_seating_capacity, fuel_efficiency_priority ("low"/"medium"/"high"), zip_code, radius_miles, budget_max from the request.
 - transmission: set "manual" when they say manual/stick/stick-shift/3-pedal; "automatic" when they say automatic; otherwise null.
+- fuel_type: "electric"/"hybrid"/"diesel"/"gas" when specified, else null.
+- cylinders: a number when specified (e.g. "V8" -> 8, "six-cylinder" -> 6, "four banger" -> 4), else null.
+- keywords: a short must-have phrase to match in the listing text (e.g. "supercharged", "Nismo", "Z51"), else null.
 - mechanical_filters.preferred_drivetrains: set from any drivetrain preference — "RWD" for rear-wheel drive, "FWD" for front-wheel, "AWD" and "4WD" together for all-wheel/4x4/snow. Empty if no preference.
 - excluded_body_styles: e.g. "Minivan" when disliked.
 - suggested_models: 3-6 specific make/model/year-range combos that genuinely fit and fit the budget. Honor the drivetrain/transmission preference (e.g. cheap RWD manual fun -> Mazda MX-5 Miata, Subaru BRZ, Toyota 86, Ford Mustang, Nissan 370Z).
@@ -64,6 +68,12 @@ const SEARCH_PLAN_TOOL: Anthropic.Tool = {
           },
           intended_use: { type: ["string", "null"] },
           transmission: { type: ["string", "null"], enum: ["manual", "automatic", null] },
+          fuel_type: {
+            type: ["string", "null"],
+            enum: ["gas", "hybrid", "electric", "diesel", null],
+          },
+          cylinders: { type: ["number", "null"] },
+          keywords: { type: ["string", "null"] },
         },
         required: [],
       },
