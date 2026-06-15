@@ -45,7 +45,12 @@ export const automotiveTargetsSchema = z.object({
   body_styles: z.array(z.string()).default([]),
   excluded_body_styles: z.array(z.string()).default([]),
   suggested_models: z.array(suggestedModelSchema).default([]),
-  mechanical_filters: mechanicalFiltersSchema,
+  // Defaulted so a slightly-incomplete tool response (Haiku is less strict than Sonnet) still
+  // parses instead of throwing and killing the whole search.
+  mechanical_filters: mechanicalFiltersSchema.default({
+    preferred_drivetrains: [],
+    excluded_powertrains: [],
+  }),
 });
 
 export const searchPlanSchema = z.object({

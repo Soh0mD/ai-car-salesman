@@ -116,10 +116,14 @@ export async function runConversationalSearch(
   send: SendFn,
   profile?: WizardProfile,
 ): Promise<SearchResult> {
-  // Fire the streaming reply and the plan extraction concurrently.
+  // Fire the streaming reply and the plan extraction concurrently. The reply is best-effort:
+  // if it fails we still deliver listings (and never leave an unhandled promise rejection).
   const replyPromise = streamConversationalReply(messages, (delta) =>
     send("reply_delta", { text: delta }),
-  );
+  ).catch((err) => {
+    console.error("reply stream failed:", err);
+    return "";
+  });
   const plan = await extractSearchPlan(messages);
   if (profile) applyProfileOverrides(plan, profile);
   send("plan", { constraints: plan.constraints, targets: plan.automotive_targets });

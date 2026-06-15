@@ -1,8 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import type { NormalizedListing } from "@/lib/types";
+
+// Upgrade http -> https so photos aren't blocked as mixed content on the https site.
+const secure = (url: string) => url.replace(/^http:\/\//i, "https://");
 
 const SOURCE_LABEL: Record<string, string> = {
   marketcheck: "Dealer listing",
@@ -23,6 +26,20 @@ export function DetailModal({
 }) {
   const [idx, setIdx] = useState(0);
   const photos = l.images.length > 0 ? l.images : [];
+
+  // Close on Escape, and lock background scroll while the modal is open.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [onClose]);
   const specs: [string, string][] = [
     ["Year", l.year != null ? String(l.year) : "—"],
     ["Make", l.make ?? "—"],
@@ -63,7 +80,7 @@ export function DetailModal({
         >
           {photos.length > 0 ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={photos[idx]} alt={l.title} className="h-full w-full object-cover" />
+            <img src={secure(photos[idx])} alt={l.title} className="h-full w-full object-cover" />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-5xl">🚘</div>
           )}
