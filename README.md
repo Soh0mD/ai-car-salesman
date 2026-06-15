@@ -1,4 +1,4 @@
-# 🚗 AI Car Salesman
+# 🚗 dascar
 
 A conversational used-car finder. Describe what you need in plain English
 ("3 kids, hate minivans, live in Indy, good mileage, under $25k") and it:

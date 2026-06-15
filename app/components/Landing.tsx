@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { Logo } from "./Logo";
 
 const PERKS = [
   {
@@ -37,8 +38,8 @@ export function Landing({ onStart, onAdvanced }: { onStart: () => void; onAdvanc
       animate="show"
       className="mx-auto flex min-h-[82vh] max-w-3xl flex-col items-center justify-center px-5 text-center"
     >
-      <motion.div variants={item} className="md-chip mb-5" data-selected="true">
-        🚗 AI Car Salesman
+      <motion.div variants={item} className="mb-6">
+        <Logo size={40} />
       </motion.div>
 
       <motion.h1 variants={item} className="md-display">

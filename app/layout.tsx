@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Car Salesman",
+  title: "dascar — find your next car without the tab chaos",
   description:
-    "Describe what you need in plain English — get real, ranked car listings with reliability advice.",
+    "Answer a few quick questions and dascar searches real listings across dealers and private sellers, ranks them by value, and flags the lemons.",
 };
 
 export default function RootLayout({
