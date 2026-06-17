@@ -40,11 +40,6 @@ const MILEAGE_STOPS = [
 ];
 const OLDEST_YEAR = 1981; // 17-digit VINs standardized in 1981 — the floor the APIs reliably cover
 
-const fmtBudget = (v: number) => (v >= 1_000_000 ? "$1M+" : `$${(v / 1000).toLocaleString()}k`);
-const fmtRadius = (v: number) => (v >= 99999 ? "Nationwide" : `${v} miles`);
-const fmtMileage = (v: number) =>
-  v <= 500 ? "≤500 mi — basically new" : `under ${v.toLocaleString()} mi`;
-
 export function Wizard({ onComplete }: { onComplete: (profile: WizardProfile) => void }) {
   const [profile, setProfile] = useState<WizardProfile>(DEFAULT_PROFILE);
   const [fuelRating, setFuelRating] = useState(3);
@@ -160,7 +155,15 @@ function buildSteps(
       canNext: true,
       body: (
         <div>
-          <BigValue>{fmtBudget(p.budget_max)}</BigValue>
+          <div className="mb-5 flex justify-center">
+            <EditableNumber
+              value={p.budget_max}
+              onCommit={(v) => update({ budget_max: v })}
+              min={500}
+              max={2_000_000}
+              prefix="$"
+            />
+          </div>
           <StepSlider
             stops={BUDGET_STOPS}
             value={p.budget_max}
@@ -193,7 +196,18 @@ function buildSteps(
             )}
           </div>
           <div>
-            <Label>Search radius — {fmtRadius(p.radius_miles)}</Label>
+            <Label>Search radius</Label>
+            <div className="mb-3 mt-1 flex justify-center">
+              <EditableNumber
+                value={p.radius_miles}
+                onCommit={(v) => update({ radius_miles: v })}
+                min={5}
+                max={99999}
+                suffix=" mi"
+                special={(v) => (v >= 5000 ? "Nationwide" : null)}
+                className="text-2xl font-black"
+              />
+            </div>
             <StepSlider
               stops={RADIUS_STOPS}
               value={p.radius_miles}
@@ -227,10 +241,24 @@ function buildSteps(
       canNext: true,
       body: (
         <div>
-          <BigValue>
-            {p.year_min} – {p.year_max}
-          </BigValue>
-          <Label>Oldest — {p.year_min}</Label>
+          <div className="mb-5 flex items-center justify-center gap-3">
+            <EditableNumber
+              value={p.year_min}
+              onCommit={(v) => update({ year_min: v })}
+              min={OLDEST_YEAR}
+              max={p.year_max}
+            />
+            <span className="text-4xl font-black" style={{ color: "var(--md-primary)" }}>
+              –
+            </span>
+            <EditableNumber
+              value={p.year_max}
+              onCommit={(v) => update({ year_max: v })}
+              min={p.year_min}
+              max={CURRENT_YEAR}
+            />
+          </div>
+          <Label>Oldest</Label>
           <Slider
             min={OLDEST_YEAR}
             max={CURRENT_YEAR}
@@ -238,7 +266,7 @@ function buildSteps(
             value={p.year_min}
             onChange={(v) => update({ year_min: Math.min(v, p.year_max) })}
           />
-          <Label>Newest — {p.year_max}</Label>
+          <Label>Newest</Label>
           <Slider
             min={OLDEST_YEAR}
             max={CURRENT_YEAR}
@@ -255,7 +283,21 @@ function buildSteps(
       canNext: true,
       body: (
         <div>
-          <BigValue>{fmtMileage(p.max_mileage)}</BigValue>
+          <div className="mb-1 flex justify-center">
+            <EditableNumber
+              value={p.max_mileage}
+              onCommit={(v) => update({ max_mileage: v })}
+              min={0}
+              max={300000}
+              suffix=" mi"
+            />
+          </div>
+          <p
+            className="mb-4 text-center text-sm"
+            style={{ color: "var(--md-on-surface-variant)" }}
+          >
+            {p.max_mileage <= 500 ? "basically new" : "maximum miles"}
+          </p>
           <StepSlider
             stops={MILEAGE_STOPS}
             value={p.max_mileage}
@@ -412,14 +454,6 @@ function buildSteps(
 
 // ---- input primitives ----
 
-function BigValue({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="mb-5 text-center text-4xl font-black" style={{ color: "var(--md-primary)" }}>
-      {children}
-    </div>
-  );
-}
-
 function Label({ children }: { children: React.ReactNode }) {
   return (
     <span
@@ -481,7 +515,11 @@ function StepSlider({
   value: number;
   onChange: (v: number) => void;
 }) {
-  const idx = Math.max(0, stops.indexOf(value));
+  // Nearest stop (not exact match) so a typed off-stop value still positions the thumb sensibly.
+  const idx = stops.reduce(
+    (best, s, i) => (Math.abs(s - value) < Math.abs(stops[best] - value) ? i : best),
+    0,
+  );
   const pct = stops.length > 1 ? (idx / (stops.length - 1)) * 100 : 0;
   return (
     <input
@@ -494,6 +532,60 @@ function StepSlider({
       className="md-slider"
       style={{ ["--pct"]: `${pct}%` } as React.CSSProperties}
     />
+  );
+}
+
+/**
+ * A number you can type OR slide to. The displayed value is itself a borderless input — type
+ * digits to edit, Enter/blur to commit (clamped). `special` shows a word (e.g. "Nationwide")
+ * in place of the number when applicable; focusing it clears for fresh entry.
+ */
+function EditableNumber({
+  value,
+  onCommit,
+  min,
+  max,
+  prefix = "",
+  suffix = "",
+  special,
+  className = "text-4xl font-black",
+}: {
+  value: number;
+  onCommit: (v: number) => void;
+  min: number;
+  max: number;
+  prefix?: string;
+  suffix?: string;
+  special?: (v: number) => string | null;
+  className?: string;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const specialLabel = draft === null && special ? special(value) : null;
+  const shown = draft !== null ? draft : (specialLabel ?? value.toLocaleString());
+  return (
+    <span
+      className={`inline-flex items-center justify-center ${className}`}
+      style={{ color: "var(--md-primary)" }}
+    >
+      {prefix && !specialLabel ? <span>{prefix}</span> : null}
+      <input
+        value={shown}
+        inputMode="numeric"
+        aria-label="Edit value"
+        onFocus={() => setDraft(specialLabel ? "" : String(value))}
+        onChange={(e) => setDraft(e.target.value.replace(/[^0-9]/g, ""))}
+        onBlur={() => {
+          onCommit(Math.min(max, Math.max(min, Number(draft || 0))));
+          setDraft(null);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") e.currentTarget.blur();
+        }}
+        className="bg-transparent text-center outline-none"
+        style={{ width: `${Math.max(1, shown.length)}ch` }}
+      />
+      {suffix && !specialLabel ? <span>{suffix}</span> : null}
+    </span>
   );
 }
 
