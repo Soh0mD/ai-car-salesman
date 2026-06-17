@@ -29,7 +29,7 @@ const DEFAULT_PROFILE: WizardProfile = {
 
 const BODY_STYLES = ["SUV", "Sedan", "Truck", "Hatchback", "Wagon", "Coupe", "Convertible", "Van"];
 
-// Non-linear stops: fine granularity where most shoppers are, big jumps into supercar territory.
+// Non-linear stops: fine granularity where most shoppers are, big jumps at the high end.
 const BUDGET_STOPS = [
   3000, 5000, 7500, 10000, 12500, 15000, 20000, 25000, 30000, 40000, 50000, 75000, 100000, 150000,
   200000, 300000, 500000, 750000, 1000000,
@@ -151,7 +151,7 @@ function buildSteps(
   return [
     {
       title: "What's your budget?",
-      subtitle: "The top of your range — daily driver to supercar.",
+      subtitle: "The most you'd spend.",
       canNext: true,
       body: (
         <div>
@@ -405,8 +405,8 @@ function buildSteps(
       ),
     },
     {
-      title: "For the enthusiasts (optional)",
-      subtitle: "Skip if you don't care — otherwise dial it in.",
+      title: "Anything specific? (optional)",
+      subtitle: "All optional — leave blank to skip.",
       canNext: true,
       body: (
         <div className="space-y-6">
