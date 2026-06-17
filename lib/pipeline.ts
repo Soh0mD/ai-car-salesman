@@ -53,8 +53,10 @@ export function briefFromProfile(p: WizardProfile): string {
   return [
     `I'm shopping for a used car, mainly for ${useText[p.primary_use]}.`,
     `My budget is up to $${p.budget_max.toLocaleString()}.`,
-    `I'm near ZIP ${p.zip_code}, within about ${p.radius_miles} miles.`,
-    `I need at least ${p.seats} seats.`,
+    p.radius_miles >= 99999
+      ? `I'm near ZIP ${p.zip_code} but will consider cars nationwide.`
+      : `I'm near ZIP ${p.zip_code}, within about ${p.radius_miles} miles.`,
+    p.seats ? `I need at least ${p.seats} seats.` : "",
     `I'd consider model years ${p.year_min}-${p.year_max}, up to ${p.max_mileage.toLocaleString()} miles.`,
     `Fuel efficiency priority is ${p.fuel_priority}.`,
     `On a 1-5 scale, safety matters ${p.safety}/5 and fun-to-drive matters ${p.fun}/5.`,
@@ -76,7 +78,7 @@ function applyProfileOverrides(plan: SearchPlan, p: WizardProfile): void {
     budget_max: p.budget_max,
     zip_code: p.zip_code,
     radius_miles: p.radius_miles,
-    min_seating_capacity: p.seats,
+    min_seating_capacity: p.seats || null,
     fuel_efficiency_priority: p.fuel_priority,
     max_mileage: p.max_mileage,
     year_min: p.year_min,

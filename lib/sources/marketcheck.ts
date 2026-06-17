@@ -125,8 +125,13 @@ export async function search(plan: SearchPlan): Promise<NormalizedListing[]> {
     if (preferred.length === 1) params.set("drivetrain", preferred[0]);
     if (constraints.cylinders) params.set("cylinders", String(constraints.cylinders));
     if (keywordParts.length) params.set("keyword", keywordParts.join(" "));
-    if (constraints.zip_code) params.set("zip", constraints.zip_code);
-    if (constraints.radius_miles) params.set("radius", String(constraints.radius_miles));
+    // For "nationwide" (sentinel 99999) drop BOTH zip and radius — Marketcheck treats zip with no
+    // radius as exact-zip (returns ~nothing), so true national search must omit the zip entirely.
+    const nationwide = (constraints.radius_miles ?? 0) >= 5000;
+    if (constraints.zip_code && !nationwide) params.set("zip", constraints.zip_code);
+    if (constraints.radius_miles && !nationwide) {
+      params.set("radius", String(constraints.radius_miles));
+    }
     return getJson(`${BASE}?${params.toString()}`);
   });
 

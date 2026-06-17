@@ -29,6 +29,22 @@ const DEFAULT_PROFILE: WizardProfile = {
 
 const BODY_STYLES = ["SUV", "Sedan", "Truck", "Hatchback", "Wagon", "Coupe", "Convertible", "Van"];
 
+// Non-linear stops: fine granularity where most shoppers are, big jumps into supercar territory.
+const BUDGET_STOPS = [
+  3000, 5000, 7500, 10000, 12500, 15000, 20000, 25000, 30000, 40000, 50000, 75000, 100000, 150000,
+  200000, 300000, 500000, 750000, 1000000,
+];
+const RADIUS_STOPS = [10, 25, 50, 100, 150, 250, 500, 99999]; // 99999 = Nationwide
+const MILEAGE_STOPS = [
+  500, 1000, 2500, 5000, 10000, 25000, 50000, 75000, 100000, 125000, 150000, 200000,
+];
+const OLDEST_YEAR = 1981; // 17-digit VINs standardized in 1981 — the floor the APIs reliably cover
+
+const fmtBudget = (v: number) => (v >= 1_000_000 ? "$1M+" : `$${(v / 1000).toLocaleString()}k`);
+const fmtRadius = (v: number) => (v >= 99999 ? "Nationwide" : `${v} miles`);
+const fmtMileage = (v: number) =>
+  v <= 500 ? "≤500 mi — basically new" : `under ${v.toLocaleString()} mi`;
+
 export function Wizard({ onComplete }: { onComplete: (profile: WizardProfile) => void }) {
   const [profile, setProfile] = useState<WizardProfile>(DEFAULT_PROFILE);
   const [fuelRating, setFuelRating] = useState(3);
@@ -140,19 +156,17 @@ function buildSteps(
   return [
     {
       title: "What's your budget?",
-      subtitle: "The top of your range — we'll find value under it.",
+      subtitle: "The top of your range — daily driver to supercar.",
       canNext: true,
       body: (
         <div>
-          <BigValue>${p.budget_max.toLocaleString()}</BigValue>
-          <Slider
-            min={3000}
-            max={60000}
-            step={500}
+          <BigValue>{fmtBudget(p.budget_max)}</BigValue>
+          <StepSlider
+            stops={BUDGET_STOPS}
             value={p.budget_max}
             onChange={(v) => update({ budget_max: v })}
           />
-          <Ends left="$3k" right="$60k" />
+          <Ends left="$3k" right="$1M+" />
         </div>
       ),
     },
@@ -179,15 +193,13 @@ function buildSteps(
             )}
           </div>
           <div>
-            <Label>Search radius — {p.radius_miles} miles</Label>
-            <Slider
-              min={10}
-              max={250}
-              step={10}
+            <Label>Search radius — {fmtRadius(p.radius_miles)}</Label>
+            <StepSlider
+              stops={RADIUS_STOPS}
               value={p.radius_miles}
               onChange={(v) => update({ radius_miles: v })}
             />
-            <Ends left="10 mi" right="250 mi" />
+            <Ends left="10 mi" right="Nationwide" />
           </div>
         </div>
       ),
@@ -200,6 +212,7 @@ function buildSteps(
           value={p.seats}
           onChange={(v) => update({ seats: v as number })}
           options={[
+            { value: 0, emoji: "🤷", label: "Any", desc: "No minimum" },
             { value: 2, emoji: "🧍", label: "Just me", desc: "2 seats" },
             { value: 5, emoji: "🚗", label: "Everyday", desc: "5 seats" },
             { value: 7, emoji: "👨‍👩‍👧‍👦", label: "Family", desc: "6–7 seats" },
@@ -219,7 +232,7 @@ function buildSteps(
           </BigValue>
           <Label>Oldest — {p.year_min}</Label>
           <Slider
-            min={1900}
+            min={OLDEST_YEAR}
             max={CURRENT_YEAR}
             step={1}
             value={p.year_min}
@@ -227,7 +240,7 @@ function buildSteps(
           />
           <Label>Newest — {p.year_max}</Label>
           <Slider
-            min={1900}
+            min={OLDEST_YEAR}
             max={CURRENT_YEAR}
             step={1}
             value={p.year_max}
@@ -242,15 +255,13 @@ function buildSteps(
       canNext: true,
       body: (
         <div>
-          <BigValue>under {p.max_mileage.toLocaleString()} mi</BigValue>
-          <Slider
-            min={20000}
-            max={200000}
-            step={5000}
+          <BigValue>{fmtMileage(p.max_mileage)}</BigValue>
+          <StepSlider
+            stops={MILEAGE_STOPS}
             value={p.max_mileage}
             onChange={(v) => update({ max_mileage: v })}
           />
-          <Ends left="20k" right="200k" />
+          <Ends left="≤500 (new)" right="200k" />
         </div>
       ),
     },
@@ -454,6 +465,32 @@ function Slider({
       step={step}
       value={value}
       onChange={(e) => onChange(Number(e.target.value))}
+      className="md-slider"
+      style={{ ["--pct"]: `${pct}%` } as React.CSSProperties}
+    />
+  );
+}
+
+/** Slider over a fixed set of non-linear stops (e.g. budget $3k…$1M). Value must be a stop. */
+function StepSlider({
+  stops,
+  value,
+  onChange,
+}: {
+  stops: number[];
+  value: number;
+  onChange: (v: number) => void;
+}) {
+  const idx = Math.max(0, stops.indexOf(value));
+  const pct = stops.length > 1 ? (idx / (stops.length - 1)) * 100 : 0;
+  return (
+    <input
+      type="range"
+      min={0}
+      max={stops.length - 1}
+      step={1}
+      value={idx}
+      onChange={(e) => onChange(stops[Number(e.target.value)])}
       className="md-slider"
       style={{ ["--pct"]: `${pct}%` } as React.CSSProperties}
     />
