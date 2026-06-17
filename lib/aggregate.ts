@@ -186,7 +186,41 @@ export async function searchAndRank(plan: SearchPlan): Promise<AggregateResult> 
   listings.sort((a, b) => b.value_score - a.value_score);
   listings = listings.slice(0, MAX_RESULTS);
 
+  // Price-vs-market deal signal from in-set comparables (kept separate from value_score).
+  computeDeals(listings);
+
   return { listings, counts };
+}
+
+function median(nums: number[]): number {
+  const s = [...nums].sort((a, b) => a - b);
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+
+/**
+ * Label each listing's price vs comparable listings in the same result set (same make/model,
+ * year ±1). Needs >=4 comparables (incl. self) to be meaningful; otherwise leaves deal null.
+ * Distinct from value_score: this is purely "are you overpaying for THIS car vs the market".
+ */
+function computeDeals(listings: NormalizedListing[]): void {
+  for (const l of listings) {
+    if (l.price == null || !l.make || !l.model || l.year == null) continue;
+    const comps = listings.filter(
+      (o) =>
+        o.price != null &&
+        o.make === l.make &&
+        o.model === l.model &&
+        o.year != null &&
+        Math.abs(o.year - l.year!) <= 1,
+    );
+    if (comps.length < 4) continue;
+    const med = median(comps.map((o) => o.price!));
+    if (med <= 0) continue;
+    const ratio = l.price / med;
+    const tier = ratio <= 0.93 ? "great" : ratio >= 1.07 ? "high" : "fair";
+    l.deal = { tier, deltaVsMedian: Math.round(l.price - med) };
+  }
 }
 
 /**

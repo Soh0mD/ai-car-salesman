@@ -5,6 +5,7 @@
 
 const RECALLS_BASE = "https://api.nhtsa.gov/recalls/recallsByVehicle";
 const COMPLAINTS_BASE = "https://api.nhtsa.gov/complaints/complaintsByVehicle";
+const SAFETY_BASE = "https://api.nhtsa.gov/SafetyRatings";
 const VPIC_DECODE = "https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues";
 
 // NHTSA is occasionally slow on a cold combo. Recall data is best-effort enrichment, so
@@ -112,6 +113,57 @@ export async function getComplaintStats(
   } finally {
     clearTimeout(t);
   }
+}
+
+export interface SafetyRating {
+  overall: number | null;
+  frontal: number | null;
+  side: number | null;
+  rollover: number | null;
+}
+
+const safetyCache = new Map<string, SafetyRating | null>();
+
+/** NHTSA NCAP 5-star crash ratings for a make/model/year (2-step lookup). Null if unrated. */
+export async function getSafetyRating(
+  make: string,
+  model: string,
+  year: number,
+): Promise<SafetyRating | null> {
+  const key = `${make}|${model}|${year}`.toLowerCase();
+  const cached = safetyCache.get(key);
+  if (cached !== undefined) return cached;
+
+  const lookup = (await getJson(
+    `${SAFETY_BASE}/modelyear/${year}/make/${encodeURIComponent(make)}/model/${encodeURIComponent(model)}`,
+  )) as { Results?: { VehicleId?: number }[] } | null;
+  const vehicleId = lookup?.Results?.[0]?.VehicleId;
+  if (!vehicleId) {
+    safetyCache.set(key, null);
+    return null;
+  }
+
+  const data = (await getJson(`${SAFETY_BASE}/VehicleId/${vehicleId}`)) as {
+    Results?: {
+      OverallRating?: string;
+      OverallFrontCrashRating?: string;
+      OverallSideCrashRating?: string;
+      RolloverRating?: string;
+    }[];
+  } | null;
+  const r = data?.Results?.[0];
+  const star = (v: string | undefined) => {
+    const n = parseInt(v ?? "", 10);
+    return Number.isFinite(n) ? n : null;
+  };
+  const result: SafetyRating = {
+    overall: star(r?.OverallRating),
+    frontal: star(r?.OverallFrontCrashRating),
+    side: star(r?.OverallSideCrashRating),
+    rollover: star(r?.RolloverRating),
+  };
+  safetyCache.set(key, result);
+  return result;
 }
 
 export interface VinFacts {

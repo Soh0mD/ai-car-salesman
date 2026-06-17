@@ -99,6 +99,26 @@ export interface ReliabilityFlag {
   issue: string;
 }
 
+/** Price-vs-market signal (distinct from value_score, which is fit-to-your-search). */
+export interface DealInfo {
+  tier: "great" | "fair" | "high";
+  /** listing price minus the median of comparable listings (negative = below market). */
+  deltaVsMedian: number;
+}
+
+/** On-demand running-cost + safety data fetched for a single car (see /api/car-intel). */
+export interface CarIntel {
+  mpg: number | null;
+  annualFuelCost: number | null;
+  evRange: number | null;
+  safety: {
+    overall: number | null;
+    frontal: number | null;
+    side: number | null;
+    rollover: number | null;
+  } | null;
+}
+
 /** The single shape every inventory source is normalized into. */
 export interface NormalizedListing {
   source: ListingSource;
@@ -126,6 +146,8 @@ export interface NormalizedListing {
   complaints: { total: number; powertrain: number } | null;
   /** Curated known-issue warning for this make/model/year, if any (see lib/reliability.ts). */
   reliability_flag: ReliabilityFlag | null;
-  /** 0..100 composite of price-vs-budget, proximity, recalls, reliability match. */
+  /** Price-vs-market deal signal, computed from in-set comparables (null if too few). */
+  deal: DealInfo | null;
+  /** 0..100 composite of price-vs-budget, proximity, recalls, reliability — i.e. "Match". */
   value_score: number;
 }

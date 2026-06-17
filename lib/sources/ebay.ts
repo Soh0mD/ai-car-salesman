@@ -94,6 +94,7 @@ function mapItem(item: EbayItem, hint: SuggestedModel | null): NormalizedListing
     recall_count: null,
     complaints: null,
     reliability_flag: null,
+    deal: null,
     value_score: 0,
   };
 }

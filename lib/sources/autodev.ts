@@ -67,6 +67,7 @@ function mapRecord(r: AutoDevRecord): NormalizedListing | null {
     recall_count: null,
     complaints: null,
     reliability_flag: null,
+    deal: null,
     value_score: 0,
   };
 }

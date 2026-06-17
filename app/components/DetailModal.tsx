@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import type { NormalizedListing } from "@/lib/types";
+import type { CarIntel, NormalizedListing } from "@/lib/types";
 
 // Upgrade http -> https so photos aren't blocked as mixed content on the https site.
 const secure = (url: string) => url.replace(/^http:\/\//i, "https://");
@@ -26,6 +26,27 @@ export function DetailModal({
 }) {
   const [idx, setIdx] = useState(0);
   const photos = l.images.length > 0 ? l.images : [];
+
+  // Fetch running-cost + safety on demand (only for the car the user actually opened).
+  const [intel, setIntel] = useState<CarIntel | null>(null);
+  const [intelLoading, setIntelLoading] = useState(!!(l.make && l.model && l.year));
+  useEffect(() => {
+    if (!l.make || !l.model || !l.year) return;
+    let cancelled = false;
+    const q = new URLSearchParams({ make: l.make, model: l.model, year: String(l.year) });
+    fetch(`/api/car-intel?${q.toString()}`)
+      .then((r) => r.json())
+      .then((d: CarIntel) => {
+        if (!cancelled) setIntel(d);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setIntelLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [l.make, l.model, l.year]);
 
   // Close on Escape, and lock background scroll while the modal is open.
   useEffect(() => {
@@ -124,8 +145,59 @@ export function DetailModal({
           </div>
           <p className="mt-0.5 text-xs" style={{ color: "var(--md-on-surface-variant)" }}>
             {SOURCE_LABEL[l.source] ?? l.source}
-            {l.dealer_name ? ` · ${l.dealer_name}` : ""} · Value score {l.value_score}
+            {l.dealer_name ? ` · ${l.dealer_name}` : ""} · Match {l.value_score}/100
           </p>
+          {l.deal && (
+            <p
+              className="mt-2 text-sm font-semibold"
+              style={{
+                color:
+                  l.deal.tier === "great"
+                    ? "var(--md-primary)"
+                    : l.deal.tier === "high"
+                      ? "var(--md-error)"
+                      : "var(--md-on-surface-variant)",
+              }}
+            >
+              {l.deal.tier === "great"
+                ? `💰 Great price — $${Math.abs(l.deal.deltaVsMedian).toLocaleString()} below similar listings`
+                : l.deal.tier === "high"
+                  ? `Above market — $${Math.abs(l.deal.deltaVsMedian).toLocaleString()} more than similar listings`
+                  : "Priced in line with similar listings"}
+            </p>
+          )}
+
+          {/* running costs + safety (fetched on demand) */}
+          <div
+            className="mt-4 rounded-2xl p-3 text-sm"
+            style={{ background: "var(--md-surface-container-high)" }}
+          >
+            <div className="mb-1 font-bold">Running costs &amp; safety</div>
+            {intelLoading ? (
+              <div style={{ color: "var(--md-on-surface-variant)" }}>
+                Checking EPA fuel economy &amp; NHTSA safety…
+              </div>
+            ) : intel &&
+              (intel.mpg || intel.annualFuelCost || intel.evRange || intel.safety?.overall) ? (
+              <ul className="space-y-1" style={{ color: "var(--md-on-surface-variant)" }}>
+                {intel.mpg && <li>⛽ {intel.mpg} MPG combined (EPA)</li>}
+                {intel.annualFuelCost && (
+                  <li>💵 ~${intel.annualFuelCost.toLocaleString()}/yr estimated fuel cost</li>
+                )}
+                {intel.evRange ? <li>🔋 {intel.evRange} mi EPA range</li> : null}
+                {intel.safety?.overall && (
+                  <li>
+                    🛡️ {intel.safety.overall}/5 NHTSA overall safety
+                    {intel.safety.rollover ? ` · rollover ${intel.safety.rollover}/5` : ""}
+                  </li>
+                )}
+              </ul>
+            ) : (
+              <div style={{ color: "var(--md-on-surface-variant)" }}>
+                No EPA/NHTSA data for this model.
+              </div>
+            )}
+          </div>
 
           {/* reliability */}
           {(l.reliability_flag || l.recall_count != null || l.complaints) && (

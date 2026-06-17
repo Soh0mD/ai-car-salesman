@@ -1,4 +1,11 @@
-import type { NormalizedListing } from "@/lib/types";
+import type { DealInfo, NormalizedListing } from "@/lib/types";
+
+function dealText(d: DealInfo): string {
+  const amt = `$${Math.abs(d.deltaVsMedian).toLocaleString("en-US")}`;
+  if (d.tier === "great") return `💰 ${amt} below similar`;
+  if (d.tier === "high") return `${amt} above similar`;
+  return "Priced like similar";
+}
 
 const SOURCE_LABEL: Record<string, string> = {
   marketcheck: "Dealer",
@@ -32,9 +39,17 @@ const TONE_STYLE: Record<Tone, React.CSSProperties> = {
   danger: { background: "var(--md-error-container)", color: "var(--md-on-error-container)" },
 };
 
-function Badge({ children, tone = "neutral" }: { children: React.ReactNode; tone?: Tone }) {
+function Badge({
+  children,
+  tone = "neutral",
+  title,
+}: {
+  children: React.ReactNode;
+  tone?: Tone;
+  title?: string;
+}) {
   return (
-    <span className="md-badge" style={TONE_STYLE[tone]}>
+    <span className="md-badge" style={TONE_STYLE[tone]} title={title}>
       {children}
     </span>
   );
@@ -86,7 +101,20 @@ export function ListingCard({
 
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           <Badge>{SOURCE_LABEL[l.source] ?? l.source}</Badge>
-          <Badge tone="value">Value {l.value_score}</Badge>
+          {l.deal && (
+            <Badge
+              tone={l.deal.tier === "great" ? "good" : l.deal.tier === "high" ? "warn" : "neutral"}
+              title="This car's price vs. similar listings in your results"
+            >
+              {dealText(l.deal)}
+            </Badge>
+          )}
+          <Badge
+            tone="value"
+            title="Match: how well it fits your search — price, distance, mileage & reliability"
+          >
+            Match {l.value_score}
+          </Badge>
           {l.reliability_flag && (
             <Badge tone={l.reliability_flag.severity === "avoid" ? "danger" : "warn"}>
               {l.reliability_flag.severity === "avoid" ? "⚠ Known issue" : "Heads up"}

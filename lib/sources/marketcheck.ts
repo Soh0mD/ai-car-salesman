@@ -77,6 +77,7 @@ function mapListing(l: MCListing): NormalizedListing | null {
     recall_count: null,
     complaints: null,
     reliability_flag: null,
+    deal: null,
     value_score: 0,
   };
 }

@@ -7,7 +7,8 @@
  *   reliability-enrichment path end to end with no setup.
  * - aggregate() exercises the full pipeline; sources with no key return [] gracefully.
  */
-import { getRecallCount, decodeVin } from "../lib/nhtsa.ts";
+import { getRecallCount, decodeVin, getSafetyRating } from "../lib/nhtsa.ts";
+import { getFuelEconomy } from "../lib/fueleconomy.ts";
 import { aggregate } from "../lib/aggregate.ts";
 import { checkReliability } from "../lib/reliability.ts";
 import type { SearchPlan } from "../lib/types.ts";
@@ -49,6 +50,11 @@ async function main() {
   console.log("Ford Focus 2014:", checkReliability("Ford", "Focus", 2014));
   console.log("Honda CR-V 2018:", checkReliability("Honda", "CR-V", 2018));
   console.log("Toyota RAV4 2018:", checkReliability("Toyota", "RAV4", 2018));
+
+  console.log("\n== FuelEconomy + Safety (live, keyless) ==");
+  console.log("Honda CR-V 2018 fuel:", await getFuelEconomy("Honda", "CR-V", 2018));
+  console.log("Honda CR-V 2018 safety:", await getSafetyRating("Honda", "CR-V", 2018));
+  console.log("Toyota RAV4 2020 fuel:", await getFuelEconomy("Toyota", "RAV4", 2020));
 
   console.log("\n== Full aggregate pipeline ==");
   const { listings, counts } = await aggregate(samplePlan);
