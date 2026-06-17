@@ -145,6 +145,7 @@ export async function streamConversationalReply(
   const stream = client.messages.stream({
     model: MODEL,
     max_tokens: 400,
+    temperature: 0, // deterministic wording — same input gives the same advice
     system: REPLY_SYSTEM_PROMPT,
     messages: messages.map((m) => ({ role: m.role, content: m.content })),
   });
