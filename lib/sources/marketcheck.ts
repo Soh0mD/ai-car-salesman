@@ -98,9 +98,20 @@ export async function search(plan: SearchPlan): Promise<NormalizedListing[]> {
       rows: String(ROWS_PER_MODEL),
       car_type: "used",
     });
+    // Fuel handling is quirky on Marketcheck: it tags hybrids as "Unleaded" (hybrid-ness lives
+    // in the model name/heading), so fuel_type=Hybrid returns nothing. Electric/Diesel ARE tagged
+    // correctly. So: hybrid -> keyword "Hybrid" on the base model; electric/diesel -> fuel_type.
+    const keywordParts: string[] = [];
+    if (constraints.keywords) keywordParts.push(constraints.keywords);
+    if (constraints.fuel_type === "hybrid") keywordParts.push("Hybrid");
+    if (constraints.fuel_type === "electric") params.set("fuel_type", "Electric");
+    if (constraints.fuel_type === "diesel") params.set("fuel_type", "Diesel");
+
     if (m) {
       params.set("make", m.make);
-      params.set("model", m.model);
+      // Strip fuel suffixes ("Highlander Hybrid" -> "Highlander", "Bolt EV" -> "Bolt") so the
+      // base-model query matches; hybrid intent is then caught by the keyword + post-filter.
+      params.set("model", m.model.replace(/\s+(plug-in hybrid|hybrid|ev|electric)$/i, "").trim());
       params.set("year_range", `${m.years.min}-${m.years.max}`);
     }
     if (constraints.budget_max) params.set("price_range", `0-${Math.round(constraints.budget_max)}`);
@@ -112,18 +123,8 @@ export async function search(plan: SearchPlan): Promise<NormalizedListing[]> {
     // (RWD/FWD are rare enough that filtering at the source actually surfaces them).
     const preferred = automotive_targets.mechanical_filters.preferred_drivetrains;
     if (preferred.length === 1) params.set("drivetrain", preferred[0]);
-    // Enthusiast filters (verified Marketcheck params). "gas" has no single token, so it's
-    // left to the post-filter; electric/hybrid/diesel map directly.
-    const fuelToken: Record<string, string> = {
-      electric: "Electric",
-      hybrid: "Hybrid",
-      diesel: "Diesel",
-    };
-    if (constraints.fuel_type && fuelToken[constraints.fuel_type]) {
-      params.set("fuel_type", fuelToken[constraints.fuel_type]);
-    }
     if (constraints.cylinders) params.set("cylinders", String(constraints.cylinders));
-    if (constraints.keywords) params.set("keyword", constraints.keywords);
+    if (keywordParts.length) params.set("keyword", keywordParts.join(" "));
     if (constraints.zip_code) params.set("zip", constraints.zip_code);
     if (constraints.radius_miles) params.set("radius", String(constraints.radius_miles));
     return getJson(`${BASE}?${params.toString()}`);

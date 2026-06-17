@@ -86,16 +86,16 @@ function applyProfileOverrides(plan: SearchPlan, p: WizardProfile): void {
     cylinders: p.cylinders || null,
     keywords: p.keywords.trim() || null,
   });
-  // Drivetrain preference: AWD also accepts 4WD; FWD/RWD are exact.
+  // Drivetrain preference: AWD also accepts 4WD; FWD/RWD are exact. ALWAYS set from the wizard
+  // (the wizard is authoritative) — "any" must CLEAR any drivetrain the LLM inferred on its own,
+  // otherwise an inferred "AWD" silently over-filters when the user asked for no preference.
   const driveMap: Record<WizardProfile["drivetrain"], string[]> = {
     any: [],
     awd: ["AWD", "4WD"],
     fwd: ["FWD"],
     rwd: ["RWD"],
   };
-  if (p.drivetrain !== "any") {
-    plan.automotive_targets.mechanical_filters.preferred_drivetrains = driveMap[p.drivetrain];
-  }
+  plan.automotive_targets.mechanical_filters.preferred_drivetrains = driveMap[p.drivetrain];
   if (p.body_styles.length) plan.automotive_targets.body_styles = p.body_styles;
   if (p.excluded_body_styles.length) {
     plan.automotive_targets.excluded_body_styles = [

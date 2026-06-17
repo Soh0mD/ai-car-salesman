@@ -62,13 +62,22 @@ function transmissionMatches(t: string | null, want: "manual" | "automatic" | nu
   return want === "manual" ? isManual : !isManual;
 }
 
-/** True if the listing's fuel type satisfies the preference (unknowns are kept). */
-function fuelMatches(f: string | null, want: string | null | undefined): boolean {
-  if (!want || !f) return true;
-  const ff = f.toLowerCase();
-  if (want === "gas") return !/(electric|hybrid|diesel)/.test(ff);
-  if (want === "electric") return ff.includes("electric") && !ff.includes("hybrid");
-  return ff.includes(want); // hybrid | diesel
+/**
+ * True if the listing matches the fuel preference. Marketcheck tags hybrids as "Unleaded"
+ * (hybrid-ness is in the model name/heading), so we detect from the name too — not just the
+ * fuel_type field — otherwise every hybrid gets wrongly dropped.
+ */
+function fuelMatches(l: NormalizedListing, want: string | null | undefined): boolean {
+  if (!want) return true;
+  const name = `${l.model ?? ""} ${l.title ?? ""}`.toLowerCase();
+  const f = (l.fuel_type ?? "").toLowerCase();
+  const isHybrid = name.includes("hybrid") || name.includes("plug-in") || f.includes("hybrid");
+  const isElectric = f.includes("electric") || name.includes("electric") || /\bev\b/.test(name);
+  const isDiesel = f.includes("diesel") || name.includes("diesel") || name.includes("tdi");
+  if (want === "hybrid") return isHybrid;
+  if (want === "electric") return isElectric && !isHybrid; // pure EV, not a plug-in hybrid
+  if (want === "diesel") return isDiesel;
+  return !isElectric && !isDiesel; // gas (hybrids burn gas, so allow them through)
 }
 
 /** True if the listing's cylinder count matches the preference (0/unknown are kept). */
@@ -171,7 +180,7 @@ export async function searchAndRank(plan: SearchPlan): Promise<AggregateResult> 
     if (max_mileage && l.mileage && l.mileage > max_mileage) return false;
     if (!transmissionMatches(l.transmission, transmission)) return false;
     if (!drivetrainMatches(l.drivetrain, preferredDrive)) return false;
-    if (!fuelMatches(l.fuel_type, fuel_type)) return false;
+    if (!fuelMatches(l, fuel_type)) return false;
     if (!cylindersMatches(l.cylinders, cylinders)) return false;
     return true;
   });
