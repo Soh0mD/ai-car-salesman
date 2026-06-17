@@ -247,6 +247,7 @@ function buildSteps(
               onCommit={(v) => update({ year_min: v })}
               min={OLDEST_YEAR}
               max={p.year_max}
+              plain
             />
             <span className="text-4xl font-black" style={{ color: "var(--md-primary)" }}>
               –
@@ -256,6 +257,7 @@ function buildSteps(
               onCommit={(v) => update({ year_max: v })}
               min={p.year_min}
               max={CURRENT_YEAR}
+              plain
             />
           </div>
           <Label>Oldest</Label>
@@ -548,6 +550,7 @@ function EditableNumber({
   prefix = "",
   suffix = "",
   special,
+  plain = false,
   className = "text-4xl font-black",
 }: {
   value: number;
@@ -557,11 +560,13 @@ function EditableNumber({
   prefix?: string;
   suffix?: string;
   special?: (v: number) => string | null;
+  plain?: boolean; // no thousands separators (e.g. years)
   className?: string;
 }) {
   const [draft, setDraft] = useState<string | null>(null);
   const specialLabel = draft === null && special ? special(value) : null;
-  const shown = draft !== null ? draft : (specialLabel ?? value.toLocaleString());
+  const formatted = plain ? String(value) : value.toLocaleString();
+  const shown = draft !== null ? draft : (specialLabel ?? formatted);
   return (
     <span
       className={`inline-flex items-center justify-center ${className}`}
