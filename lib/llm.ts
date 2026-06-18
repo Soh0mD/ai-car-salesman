@@ -23,17 +23,9 @@ const DOMAIN_RULES = `DOMAIN RULES — apply these proactively, the user will no
 - RELIABILITY: when budget is tight AND reliability matters, steer away from genuinely failure-prone drivetrains relevant to the segment, e.g. early Nissan/Jatco CVTs (2013-2017 Altima/Sentra/Pathfinder), dry-clutch DCTs (Ford PowerShift 2012-2016 Fiesta/Focus), Hyundai/Kia Theta II 2.0T/2.4 GDI (rod-knock era), early BMW N20 timing chains.
 - Favor strong-reliability picks when reliability is a priority (Toyota RAV4/Camry/Highlander, Honda CR-V/Accord, Mazda CX-5, Subaru Forester).`;
 
-const REPLY_SYSTEM_PROMPT = `You are an expert automotive advisor and master mechanic helping a real person find a used car, speaking warmly and concisely.
-
-${DOMAIN_RULES}
-
-Write a warm, concise (2-4 sentence) reply spoken directly to the user. Explain WHAT you're about to search for and WHY — name 1-2 standout picks and call out any powertrain you're steering them away from and the reason. Plain prose only: no JSON, no bullet lists, no headers. IMPORTANT: do not use any markdown formatting — no asterisks, no **bold**, no _italics_, no backticks. Just plain sentences. Don't over-promise; you're about to search live inventory.`;
-
-const EXTRACT_SYSTEM_PROMPT = `You convert a person's used-car needs into a precise, machine-readable search plan by calling the build_search_plan tool.
-
-${DOMAIN_RULES}
-
-Tool field guidance:
+// Field-by-field guidance for the build_search_plan tool, shared by the extract-only call and
+// the combined reply+plan call so both populate the plan identically.
+const FIELD_GUIDANCE = `Tool field guidance:
 - min_seating_capacity, fuel_efficiency_priority ("low"/"medium"/"high"), zip_code, radius_miles, budget_max from the request.
 - transmission: set "manual" when they say manual/stick/stick-shift/3-pedal; "automatic" when they say automatic; otherwise null.
 - fuel_type: "electric"/"hybrid"/"diesel"/"gas" when specified, else null.
@@ -43,9 +35,30 @@ Tool field guidance:
 - excluded_body_styles: e.g. "Minivan" when disliked.
 - suggested_models: 3-6 specific make/model/year-range combos that genuinely fit and fit the budget. Honor the drivetrain/transmission preference (e.g. cheap RWD manual fun -> Mazda MX-5 Miata, Subaru BRZ, Toyota 86, Ford Mustang, Nissan 370Z).
 - mechanical_filters.excluded_powertrains: failure-prone drivetrains relevant to this segment.
-- reliability_tier: "highest" only for bulletproof picks, "high" otherwise, "any" if they don't care.
+- reliability_tier: "highest" only for bulletproof picks, "high" otherwise, "any" if they don't care.`;
+
+const EXTRACT_SYSTEM_PROMPT = `You convert a person's used-car needs into a precise, machine-readable search plan by calling the build_search_plan tool.
+
+${DOMAIN_RULES}
+
+${FIELD_GUIDANCE}
 
 Always call build_search_plan. Never reply with prose.`;
+
+// Single call that does BOTH jobs: stream a short prose reply AND call build_search_plan. Halves
+// the per-search LLM cost vs. two separate calls. tool_choice stays "auto" so the model can emit
+// the prose text alongside the tool call (a forced tool would suppress the text).
+const COMBINED_SYSTEM_PROMPT = `You are an expert automotive advisor and master mechanic helping a real person find a used car, speaking warmly and concisely.
+
+${DOMAIN_RULES}
+
+Do BOTH of the following in your response:
+1) Write a warm, concise (2-4 sentence) reply spoken directly to the user. Explain WHAT you're about to search for and WHY — name 1-2 standout picks and call out any powertrain you're steering them away from and the reason. Plain prose only: no JSON, no bullet lists, no headers. IMPORTANT: no markdown — no asterisks, no **bold**, no _italics_, no backticks. Just plain sentences. Don't over-promise; you're about to search live inventory.
+2) Call the build_search_plan tool to capture the structured search.
+
+${FIELD_GUIDANCE}
+
+You MUST do both every time: write the prose reply AND call build_search_plan.`;
 
 // Hand-written JSON Schema for the tool input (kept in sync with searchPlanSchema).
 const SEARCH_PLAN_TOOL: Anthropic.Tool = {
@@ -134,28 +147,43 @@ function getClient(): Anthropic {
 }
 
 /**
- * Stream the conversational reply token-by-token. `onDelta` is called with each text chunk as
- * it arrives; the full assembled text is returned when the stream completes.
+ * Single streaming call that produces BOTH the conversational reply and the search plan. `onDelta`
+ * is called with each prose chunk as it arrives (the tool-call JSON streams separately and is not
+ * forwarded). Returns the assembled reply plus the parsed plan, or `plan: null` if the model
+ * didn't emit a (valid) tool call — the caller falls back to extractSearchPlan in that rare case.
  */
-export async function streamConversationalReply(
+export async function streamReplyAndPlan(
   messages: ChatMessage[],
   onDelta: (text: string) => void,
-): Promise<string> {
+): Promise<{ replyText: string; plan: SearchPlan | null }> {
   const client = getClient();
   const stream = client.messages.stream({
     model: MODEL,
-    max_tokens: 400,
-    temperature: 0, // deterministic wording — same input gives the same advice
-    system: REPLY_SYSTEM_PROMPT,
+    max_tokens: 1200, // room for the short prose reply + the tool-call JSON
+    temperature: 0, // deterministic wording + repeatable model picks
+    system: COMBINED_SYSTEM_PROMPT,
+    tools: [SEARCH_PLAN_TOOL],
+    tool_choice: { type: "auto" }, // "auto" lets prose + tool_use coexist; a forced tool hides text
     messages: messages.map((m) => ({ role: m.role, content: m.content })),
   });
   stream.on("text", (delta) => onDelta(delta));
   const final = await stream.finalMessage();
-  const text = final.content
+  const replyText = final.content
     .filter((b): b is Anthropic.TextBlock => b.type === "text")
     .map((b) => b.text)
     .join("");
-  return text;
+  const toolUse = final.content.find(
+    (b): b is Anthropic.ToolUseBlock => b.type === "tool_use",
+  );
+  let plan: SearchPlan | null = null;
+  if (toolUse) {
+    try {
+      plan = searchPlanSchema.parse(toolUse.input);
+    } catch {
+      plan = null; // malformed tool input -> caller falls back to extractSearchPlan
+    }
+  }
+  return { replyText, plan };
 }
 
 /**

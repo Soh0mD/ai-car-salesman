@@ -1,4 +1,4 @@
-import { streamConversationalReply, extractSearchPlan, type ChatMessage } from "./llm";
+import { streamReplyAndPlan, extractSearchPlan, type ChatMessage } from "./llm";
 import { searchAndRank, enrichListings } from "./aggregate";
 import type { NormalizedListing, SearchPlan, WizardProfile } from "./types";
 
@@ -133,15 +133,16 @@ export async function runConversationalSearch(
   send: SendFn,
   profile?: WizardProfile,
 ): Promise<SearchResult> {
-  // Fire the streaming reply and the plan extraction concurrently. The reply is best-effort:
-  // if it fails we still deliver listings (and never leave an unhandled promise rejection).
-  const replyPromise = streamConversationalReply(messages, (delta) =>
+  // One streaming call yields both the prose reply (streamed via reply_delta) and the search plan.
+  // Best-effort: if the call fails we still try to recover a plan so listings can be delivered.
+  const { replyText, plan: streamedPlan } = await streamReplyAndPlan(messages, (delta) =>
     send("reply_delta", { text: delta }),
   ).catch((err) => {
-    console.error("reply stream failed:", err);
-    return "";
+    console.error("reply+plan stream failed:", err);
+    return { replyText: "", plan: null };
   });
-  const plan = await extractSearchPlan(messages);
+  // Rare fallback: model returned prose but no (valid) tool call -> a forced extraction guarantees one.
+  const plan = streamedPlan ?? (await extractSearchPlan(messages));
   if (profile) applyProfileOverrides(plan, profile);
   send("plan", { constraints: plan.constraints, targets: plan.automotive_targets });
 
@@ -152,6 +153,5 @@ export async function runConversationalSearch(
   await enrichListings(listings, plan);
   send("listings", { listings, counts, enriched: true });
 
-  const replyText = await replyPromise;
   return { replyText, listings, counts };
 }
