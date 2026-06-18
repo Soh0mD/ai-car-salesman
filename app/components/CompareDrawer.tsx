@@ -110,7 +110,7 @@ export function CompareDrawer({
                     >
                       {l.image_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={secure(l.image_url)} alt={l.title} className="h-full w-full object-cover" />
+                        <img src={secure(l.image_url)} alt={l.title} loading="lazy" decoding="async" className="h-full w-full object-cover" />
                       ) : (
                         <div className="flex h-full w-full items-center justify-center text-xl">🚘</div>
                       )}
