@@ -58,29 +58,78 @@ function Badge({
 export function ListingCard({
   listing: l,
   onSelect,
+  isFavorite = false,
+  onToggleFavorite,
+  comparing = false,
+  onToggleCompare,
+  compareDisabled = false,
 }: {
   listing: NormalizedListing;
   onSelect: (listing: NormalizedListing) => void;
+  isFavorite?: boolean;
+  onToggleFavorite?: (listing: NormalizedListing) => void;
+  comparing?: boolean;
+  onToggleCompare?: (listing: NormalizedListing) => void;
+  compareDisabled?: boolean;
 }) {
   return (
-    <button
-      type="button"
-      onClick={() => onSelect(l)}
-      className="md-card md-card-outlined md-card-link flex w-full gap-4 p-3 text-left"
-    >
-      <div
-        className="h-24 w-32 shrink-0 overflow-hidden rounded-2xl"
-        style={{ background: "var(--md-surface-container-high)" }}
-      >
-        {l.image_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={secure(l.image_url)} alt={l.title} className="h-full w-full object-cover" />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-2xl">🚘</div>
+    <div className="relative">
+      {/* overlaid actions over the photo — kept outside the <button> so we never nest buttons */}
+      <div className="absolute left-2 top-2 z-10 flex items-center gap-1">
+        {onToggleFavorite && (
+          <button
+            type="button"
+            aria-label={isFavorite ? "Remove from saved" : "Save car"}
+            title={isFavorite ? "Saved — click to remove" : "Save this car"}
+            onClick={() => onToggleFavorite(l)}
+            className="flex h-7 w-7 items-center justify-center rounded-full text-sm shadow-sm"
+            style={{
+              background: "var(--md-surface-container-lowest)",
+              color: isFavorite ? "var(--md-error)" : "var(--md-on-surface-variant)",
+            }}
+          >
+            {isFavorite ? "♥" : "♡"}
+          </button>
+        )}
+        {onToggleCompare && (
+          <button
+            type="button"
+            aria-label={comparing ? "Remove from compare" : "Add to compare"}
+            title={comparing ? "Remove from compare" : "Compare this car (up to 4)"}
+            onClick={() => onToggleCompare(l)}
+            disabled={compareDisabled && !comparing}
+            className="flex h-7 w-7 items-center justify-center rounded-full text-sm shadow-sm"
+            style={{
+              cursor: compareDisabled && !comparing ? "not-allowed" : "pointer",
+              opacity: compareDisabled && !comparing ? 0.4 : 1,
+              ...(comparing
+                ? { background: "var(--md-primary)", color: "var(--md-on-primary)" }
+                : { background: "var(--md-surface-container-lowest)", color: "var(--md-on-surface-variant)" }),
+            }}
+          >
+            {comparing ? "✓" : "⇄"}
+          </button>
         )}
       </div>
 
-      <div className="min-w-0 flex-1">
+      <button
+        type="button"
+        onClick={() => onSelect(l)}
+        className="md-card md-card-outlined md-card-link flex w-full gap-4 p-3 text-left"
+      >
+        <div
+          className="h-24 w-32 shrink-0 overflow-hidden rounded-2xl"
+          style={{ background: "var(--md-surface-container-high)" }}
+        >
+          {l.image_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={secure(l.image_url)} alt={l.title} className="h-full w-full object-cover" />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-2xl">🚘</div>
+          )}
+        </div>
+
+        <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
           <h3 className="truncate text-sm font-semibold">{l.title || "Vehicle"}</h3>
           <span className="shrink-0 text-sm font-bold" style={{ color: "var(--md-primary)" }}>
@@ -149,7 +198,8 @@ export function ListingCard({
             {l.reliability_flag.issue}
           </p>
         )}
-      </div>
-    </button>
+        </div>
+      </button>
+    </div>
   );
 }

@@ -564,32 +564,56 @@ function EditableNumber({
   className?: string;
 }) {
   const [draft, setDraft] = useState<string | null>(null);
+  const [focused, setFocused] = useState(false);
   const specialLabel = draft === null && special ? special(value) : null;
   const formatted = plain ? String(value) : value.toLocaleString();
   const shown = draft !== null ? draft : (specialLabel ?? formatted);
   return (
-    <span
-      className={`inline-flex items-center justify-center ${className}`}
-      style={{ color: "var(--md-primary)" }}
-    >
-      {prefix && !specialLabel ? <span>{prefix}</span> : null}
-      <input
-        value={shown}
-        inputMode="numeric"
-        aria-label="Edit value"
-        onFocus={() => setDraft(specialLabel ? "" : String(value))}
-        onChange={(e) => setDraft(e.target.value.replace(/[^0-9]/g, ""))}
-        onBlur={() => {
-          onCommit(Math.min(max, Math.max(min, Number(draft || 0))));
-          setDraft(null);
+    <span className="inline-flex flex-col items-center gap-1" title="Click to type, or drag the slider">
+      <span
+        className={`inline-flex items-center justify-center ${className}`}
+        style={{
+          color: "var(--md-primary)",
+          borderBottom: `2px ${focused ? "solid" : "dashed"} ${
+            focused ? "var(--md-primary)" : "var(--md-outline)"
+          }`,
+          paddingBottom: "0.1rem",
+          transition: "border-color 0.15s, border-style 0.15s",
         }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") e.currentTarget.blur();
-        }}
-        className="bg-transparent text-center outline-none"
-        style={{ width: `${Math.max(1, shown.length)}ch` }}
-      />
-      {suffix && !specialLabel ? <span>{suffix}</span> : null}
+      >
+        {prefix && !specialLabel ? <span>{prefix}</span> : null}
+        <input
+          value={shown}
+          inputMode="numeric"
+          aria-label="Edit value"
+          onFocus={() => {
+            setFocused(true);
+            setDraft(specialLabel ? "" : String(value));
+          }}
+          onChange={(e) => setDraft(e.target.value.replace(/[^0-9]/g, ""))}
+          onBlur={() => {
+            setFocused(false);
+            onCommit(Math.min(max, Math.max(min, Number(draft || 0))));
+            setDraft(null);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") e.currentTarget.blur();
+          }}
+          className="bg-transparent text-center outline-none"
+          style={{ width: `${Math.max(1, shown.length)}ch` }}
+        />
+        {suffix && !specialLabel ? <span>{suffix}</span> : null}
+      </span>
+      <span
+        className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide"
+        style={{ color: "var(--md-on-surface-variant)", opacity: 0.8 }}
+      >
+        <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M12 20h9" />
+          <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+        </svg>
+        Tap to type
+      </span>
     </span>
   );
 }

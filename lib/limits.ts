@@ -11,10 +11,15 @@ import { Ratelimit } from "@upstash/ratelimit";
  * backstop against a surprise bill.
  */
 
-const hasUpstash =
+export const hasUpstash =
   !!process.env.UPSTASH_REDIS_REST_URL && !!process.env.UPSTASH_REDIS_REST_TOKEN;
 
 const redis = hasUpstash ? Redis.fromEnv() : null;
+
+/** The shared Upstash client (null when not configured), for durable storage beyond caching. */
+export function getRedis() {
+  return redis;
+}
 
 const ratelimiter = redis
   ? new Ratelimit({

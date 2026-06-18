@@ -119,6 +119,15 @@ export interface CarIntel {
   } | null;
 }
 
+/** Buying-tips helper output (see /api/advise) — fair-offer range + what to check/ask. */
+export interface AdviceResult {
+  fair_offer_low: number | null;
+  fair_offer_high: number | null;
+  summary: string;
+  inspect: string[];
+  questions: string[];
+}
+
 /** The single shape every inventory source is normalized into. */
 export interface NormalizedListing {
   source: ListingSource;

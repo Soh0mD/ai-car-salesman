@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { searchPlanSchema, type SearchPlan } from "./types";
+import { searchPlanSchema, type SearchPlan, type AdviceResult } from "./types";
 
 /**
  * The conversational brain, split into two concurrent concerns for fast perceived latency:
@@ -184,4 +184,70 @@ export async function extractSearchPlan(messages: ChatMessage[]): Promise<Search
 
   // zod validates + applies defaults; throws on a malformed payload (defensive parsing).
   return searchPlanSchema.parse(toolUse.input);
+}
+
+// ---- buying-tips helper (Wave 3) ----------------------------------------------------------
+
+const ADVICE_SYSTEM_PROMPT = `You are a veteran used-car buyer and master mechanic. Given one specific used car (year/make/model/trim, asking price, mileage), produce concise, model-specific buying guidance by calling the give_buying_tips tool.
+
+- fair_offer_low / fair_offer_high: a realistic out-the-door negotiation range in USD for THIS car given its price and mileage. If price is unknown, use null for both.
+- summary: one or two plain sentences on whether the asking price is reasonable and the single biggest thing to know about this model.
+- inspect: 3-5 SPECIFIC things to check on this exact model/generation (known weak points, e.g. "check for CVT shudder on 2013-2017 Nissan", "inspect subframe rust on northern cars"), not generic advice.
+- questions: 3-4 sharp questions to ask the seller (service history, accidents, ownership).
+
+Be specific to the model and its known issues. Plain text in each string — no markdown.`;
+
+const ADVICE_TOOL: Anthropic.Tool = {
+  name: "give_buying_tips",
+  description: "Structured buying guidance for one specific used car.",
+  input_schema: {
+    type: "object",
+    properties: {
+      fair_offer_low: { type: ["number", "null"] },
+      fair_offer_high: { type: ["number", "null"] },
+      summary: { type: "string" },
+      inspect: { type: "array", items: { type: "string" } },
+      questions: { type: "array", items: { type: "string" } },
+    },
+    required: ["summary", "inspect", "questions"],
+  },
+};
+
+/** One-shot, deterministic buying-tips for a single car (temperature 0 -> cacheable). */
+export async function getBuyingTips(car: {
+  year: number | null;
+  make: string | null;
+  model: string | null;
+  trim: string | null;
+  price: number | null;
+  mileage: number | null;
+}): Promise<AdviceResult> {
+  const client = getClient();
+  const desc =
+    `Car: ${[car.year, car.make, car.model, car.trim].filter(Boolean).join(" ")}. ` +
+    `Asking price: ${car.price != null ? `$${car.price.toLocaleString()}` : "unknown"}. ` +
+    `Mileage: ${car.mileage != null ? `${car.mileage.toLocaleString()} miles` : "unknown"}.`;
+
+  const response = await client.messages.create({
+    model: MODEL,
+    max_tokens: 700,
+    temperature: 0,
+    system: ADVICE_SYSTEM_PROMPT,
+    tools: [ADVICE_TOOL],
+    tool_choice: { type: "tool", name: ADVICE_TOOL.name },
+    messages: [{ role: "user", content: desc }],
+  });
+
+  const toolUse = response.content.find(
+    (block): block is Anthropic.ToolUseBlock => block.type === "tool_use",
+  );
+  if (!toolUse) throw new Error("Model did not return buying tips.");
+  const input = toolUse.input as Partial<AdviceResult>;
+  return {
+    fair_offer_low: input.fair_offer_low ?? null,
+    fair_offer_high: input.fair_offer_high ?? null,
+    summary: input.summary ?? "",
+    inspect: input.inspect ?? [],
+    questions: input.questions ?? [],
+  };
 }

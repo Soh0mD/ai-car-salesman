@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import type { CarIntel, NormalizedListing } from "@/lib/types";
+import type { AdviceResult, CarIntel, NormalizedListing } from "@/lib/types";
+import { recordView } from "@/lib/client-store";
 
 // Upgrade http -> https so photos aren't blocked as mixed content on the https site.
 const secure = (url: string) => url.replace(/^http:\/\//i, "https://");
@@ -26,6 +27,12 @@ export function DetailModal({
 }) {
   const [idx, setIdx] = useState(0);
   const photos = l.images.length > 0 ? l.images : [];
+
+  // Log this car as recently viewed (Wave 4 stickiness — localStorage, no backend).
+  useEffect(() => {
+    recordView(l);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Fetch running-cost + safety on demand (only for the car the user actually opened).
   const [intel, setIntel] = useState<CarIntel | null>(null);
@@ -239,6 +246,12 @@ export function DetailModal({
             </div>
           )}
 
+          {/* financing calculator (Wave 3) */}
+          {l.price != null && l.price > 0 && <FinanceCalc price={l.price} />}
+
+          {/* buying tips (Wave 3) */}
+          <BuyingTips listing={l} />
+
           {/* specs */}
           <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
             {specs.map(([k, v]) => (
@@ -279,5 +292,117 @@ export function DetailModal({
         </div>
       </motion.div>
     </motion.div>
+  );
+}
+
+// ---- Wave 3: financing calculator (pure client math) --------------------------------------
+
+function FinanceCalc({ price }: { price: number }) {
+  const [down, setDown] = useState(Math.round(price * 0.1));
+  const [apr, setApr] = useState(7.5);
+  const [term, setTerm] = useState(60);
+
+  const monthly = useMemo(() => {
+    const principal = Math.max(0, price - down);
+    const r = apr / 100 / 12;
+    if (principal <= 0) return 0;
+    if (r === 0) return principal / term;
+    return (principal * r) / (1 - Math.pow(1 + r, -term));
+  }, [price, down, apr, term]);
+
+  const field = "md-field w-full px-2 py-1 text-sm";
+  return (
+    <details className="mt-4 rounded-2xl p-3 text-sm" style={{ background: "var(--md-surface-container-high)" }}>
+      <summary className="cursor-pointer font-bold">💳 Monthly payment estimate</summary>
+      <div className="mt-3 grid grid-cols-3 gap-3">
+        <label className="block">
+          <span className="text-xs" style={{ color: "var(--md-on-surface-variant)" }}>Down payment</span>
+          <input type="number" min={0} max={price} value={down} onChange={(e) => setDown(Math.min(price, Math.max(0, Number(e.target.value))))} className={field} />
+        </label>
+        <label className="block">
+          <span className="text-xs" style={{ color: "var(--md-on-surface-variant)" }}>APR %</span>
+          <input type="number" min={0} max={30} step={0.1} value={apr} onChange={(e) => setApr(Math.max(0, Number(e.target.value)))} className={field} />
+        </label>
+        <label className="block">
+          <span className="text-xs" style={{ color: "var(--md-on-surface-variant)" }}>Term (mo)</span>
+          <input type="number" min={12} max={84} step={6} value={term} onChange={(e) => setTerm(Math.max(12, Number(e.target.value)))} className={field} />
+        </label>
+      </div>
+      <p className="mt-3 text-center">
+        <span className="text-2xl font-black" style={{ color: "var(--md-primary)" }}>
+          ${monthly.toLocaleString("en-US", { maximumFractionDigits: 0 })}
+        </span>
+        <span className="text-xs" style={{ color: "var(--md-on-surface-variant)" }}> /mo · est.</span>
+      </p>
+      <p className="text-center text-[11px]" style={{ color: "var(--md-on-surface-variant)" }}>
+        Estimate only — excludes taxes, fees &amp; insurance.
+      </p>
+    </details>
+  );
+}
+
+// ---- Wave 3: AI buying tips (negotiation + inspection) ------------------------------------
+
+function BuyingTips({ listing: l }: { listing: NormalizedListing }) {
+  const [tips, setTips] = useState<AdviceResult | null>(null);
+  const [state, setState] = useState<"idle" | "loading" | "error">("idle");
+
+  async function load() {
+    setState("loading");
+    try {
+      const res = await fetch("/api/advise", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ year: l.year, make: l.make, model: l.model, trim: l.trim, price: l.price, mileage: l.mileage }),
+      });
+      if (!res.ok) throw new Error();
+      setTips((await res.json()) as AdviceResult);
+      setState("idle");
+    } catch {
+      setState("error");
+    }
+  }
+
+  if (!l.make || !l.model) return null;
+
+  if (!tips)
+    return (
+      <button
+        type="button"
+        onClick={load}
+        disabled={state === "loading"}
+        className="md-btn md-btn-tonal mt-4 w-full"
+      >
+        {state === "loading" ? "Thinking…" : state === "error" ? "Try again" : "🧠 Get buying tips"}
+      </button>
+    );
+
+  return (
+    <div className="mt-4 rounded-2xl p-3 text-sm" style={{ background: "var(--md-surface-container-high)" }}>
+      <div className="mb-1 font-bold">🧠 Buying tips</div>
+      {tips.summary && <p className="mb-2" style={{ color: "var(--md-on-surface-variant)" }}>{tips.summary}</p>}
+      {tips.fair_offer_low != null && tips.fair_offer_high != null && (
+        <p className="mb-2 font-semibold" style={{ color: "var(--md-primary)" }}>
+          Target offer: ${tips.fair_offer_low.toLocaleString()}–${tips.fair_offer_high.toLocaleString()}
+        </p>
+      )}
+      {tips.inspect.length > 0 && (
+        <>
+          <div className="mt-2 text-xs font-bold uppercase tracking-wide" style={{ color: "var(--md-on-surface-variant)" }}>What to inspect</div>
+          <ul className="ml-4 list-disc space-y-0.5" style={{ color: "var(--md-on-surface-variant)" }}>
+            {tips.inspect.map((s, i) => <li key={i}>{s}</li>)}
+          </ul>
+        </>
+      )}
+      {tips.questions.length > 0 && (
+        <>
+          <div className="mt-2 text-xs font-bold uppercase tracking-wide" style={{ color: "var(--md-on-surface-variant)" }}>Ask the seller</div>
+          <ul className="ml-4 list-disc space-y-0.5" style={{ color: "var(--md-on-surface-variant)" }}>
+            {tips.questions.map((s, i) => <li key={i}>{s}</li>)}
+          </ul>
+        </>
+      )}
+      <p className="mt-2 text-[11px]" style={{ color: "var(--md-on-surface-variant)" }}>AI guidance — verify before relying on it.</p>
+    </div>
   );
 }

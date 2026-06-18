@@ -1,19 +1,22 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { NormalizedListing, WizardProfile } from "@/lib/types";
 import { runWizardSearch } from "@/lib/search-client";
+import { useRecentlyViewed } from "@/lib/client-store";
 import { ResultsList } from "./ResultsList";
 import { DetailModal } from "./DetailModal";
+import { SaveSearchButton } from "./SaveSearchButton";
 
 export function Results({
-  profile,
+  profile: initialProfile,
   onRestart,
 }: {
   profile: WizardProfile;
   onRestart: () => void;
 }) {
+  const [profile, setProfile] = useState<WizardProfile>(initialProfile);
   const [reply, setReply] = useState(""); // raw accumulated text
   const [shown, setShown] = useState(""); // smoothly-revealed text (typewriter)
   const targetRef = useRef(""); // latest reply with markdown stripped
@@ -23,30 +26,52 @@ export function Results({
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const [selected, setSelected] = useState<NormalizedListing | null>(null);
-  const started = useRef(false);
+  const recentlyViewed = useRecentlyViewed();
+  const runToken = useRef(0);
 
-  useEffect(() => {
-    if (started.current) return; // guard against StrictMode double-invoke
-    started.current = true;
-    runWizardSearch(profile, {
-      onReplyDelta: (t) => setReply((r) => r + t),
+  // Kick off a search stream. A monotonically-increasing token guards against a stale stream
+  // from a previous search overwriting the latest one. setState happens only in async callbacks.
+  const startStream = useCallback((p: WizardProfile, token: number) => {
+    runWizardSearch(p, {
+      onReplyDelta: (t) => token === runToken.current && setReply((r) => r + t),
       onListings: (l, c, enriched) => {
+        if (token !== runToken.current) return;
         setListings(l);
         setCounts(c);
         setReliabilityLoading(!enriched);
       },
-      onError: setError,
-      onDone: () => setDone(true),
+      onError: (m) => token === runToken.current && setError(m),
+      onDone: () => token === runToken.current && setDone(true),
     });
-  }, [profile]);
+  }, []);
+
+  // Initial search on mount (state already starts clean, so no reset needed here).
+  useEffect(() => {
+    startStream(initialProfile, ++runToken.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Re-run with refined constraints: clear current results, then stream the new search.
+  const refine = (patch: Partial<WizardProfile>) => {
+    const next = { ...profile, ...patch };
+    setProfile(next);
+    setReply("");
+    setShown("");
+    targetRef.current = "";
+    setListings([]);
+    setCounts(null);
+    setReliabilityLoading(false);
+    setError(null);
+    setDone(false);
+    startStream(next, ++runToken.current);
+  };
 
   // Keep the typewriter target in sync with the raw reply, stripped of any stray markdown.
   useEffect(() => {
     targetRef.current = reply.replace(/[*_`]+/g, "");
   }, [reply]);
 
-  // Reveal characters at a steady rate so streaming reads smoothly instead of jumping in
-  // bursts as network chunks arrive. Catches up faster the further behind it is.
+  // Reveal characters at a steady rate so streaming reads smoothly.
   useEffect(() => {
     const id = setInterval(() => {
       setShown((prev) => {
@@ -97,16 +122,55 @@ export function Results({
       {error && (
         <div
           className="mt-4 rounded-2xl px-4 py-3 text-sm"
-          style={{
-            background: "var(--md-error-container)",
-            color: "var(--md-on-error-container)",
-          }}
+          style={{ background: "var(--md-error-container)", color: "var(--md-on-error-container)" }}
         >
           {error}
         </div>
       )}
 
       {searching && <Loader label="Searching live inventory…" />}
+
+      {/* refine + save */}
+      {listings.length > 0 && (
+        <div className="mt-5 flex flex-wrap items-center gap-1.5">
+          <span className="mr-1 text-xs font-semibold" style={{ color: "var(--md-on-surface-variant)" }}>
+            Refine:
+          </span>
+          <RefineChip label="💸 Cheaper" onClick={() => refine({ budget_max: Math.max(3000, Math.round(profile.budget_max * 0.8)) })} />
+          <RefineChip
+            label="🆕 Newer"
+            onClick={() => refine({ year_min: Math.min(profile.year_max, profile.year_min + 3) })}
+          />
+          <RefineChip label="🛣️ Lower miles" onClick={() => refine({ max_mileage: Math.max(1000, Math.round(profile.max_mileage / 2)) })} />
+          {profile.drivetrain !== "awd" && <RefineChip label="❄️ Only AWD" onClick={() => refine({ drivetrain: "awd" })} />}
+          {profile.radius_miles < 99999 && <RefineChip label="🌍 Search wider" onClick={() => refine({ radius_miles: 99999 })} />}
+          <SaveSearchButton profile={profile} />
+        </div>
+      )}
+
+      {recentlyViewed.length > 0 && (
+        <div className="mt-5">
+          <p className="mb-1.5 text-xs font-semibold" style={{ color: "var(--md-on-surface-variant)" }}>
+            ↩ Recently viewed
+          </p>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {recentlyViewed.map((l) => (
+              <button
+                key={l.vin ?? l.listing_url}
+                type="button"
+                onClick={() => setSelected(l)}
+                className="md-card md-card-outlined md-card-link shrink-0 px-3 py-2 text-left"
+                style={{ width: "11rem" }}
+              >
+                <div className="truncate text-xs font-semibold">{l.title || "Vehicle"}</div>
+                <div className="text-xs font-bold" style={{ color: "var(--md-primary)" }}>
+                  {l.price != null ? `$${l.price.toLocaleString()}` : "—"}
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="mt-6">
         <ResultsList
@@ -130,11 +194,19 @@ export function Results({
   );
 }
 
+function RefineChip({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} className="md-chip">
+      {label}
+    </button>
+  );
+}
+
 function ProfileSummary({ profile: p }: { profile: WizardProfile }) {
   const bits = [
     `$${p.budget_max.toLocaleString()}`,
-    `ZIP ${p.zip_code} · ${p.radius_miles}mi`,
-    `${p.seats}+ seats`,
+    p.radius_miles >= 99999 ? `ZIP ${p.zip_code} · nationwide` : `ZIP ${p.zip_code} · ${p.radius_miles}mi`,
+    p.seats ? `${p.seats}+ seats` : null,
     `${p.year_min}–${p.year_max}`,
     `<${(p.max_mileage / 1000).toFixed(0)}k mi`,
     p.drivetrain !== "any" ? p.drivetrain.toUpperCase() : null,
@@ -157,14 +229,8 @@ function ProfileSummary({ profile: p }: { profile: WizardProfile }) {
 
 function Loader({ label }: { label: string }) {
   return (
-    <div
-      className="mt-4 flex items-center gap-2 text-sm"
-      style={{ color: "var(--md-on-surface-variant)" }}
-    >
-      <span
-        className="inline-block h-2.5 w-2.5 animate-pulse rounded-full"
-        style={{ background: "var(--md-primary)" }}
-      />
+    <div className="mt-4 flex items-center gap-2 text-sm" style={{ color: "var(--md-on-surface-variant)" }}>
+      <span className="inline-block h-2.5 w-2.5 animate-pulse rounded-full" style={{ background: "var(--md-primary)" }} />
       {label}
     </div>
   );

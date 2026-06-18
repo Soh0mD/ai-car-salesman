@@ -113,6 +113,21 @@ function applyProfileOverrides(plan: SearchPlan, p: WizardProfile): void {
     .filter((m) => m.years.min <= m.years.max);
 }
 
+/** Build the deterministic search plan for a wizard profile (extract + force overrides). */
+export async function buildPlanForProfile(profile: WizardProfile): Promise<SearchPlan> {
+  const messages = [{ role: "user" as const, content: briefFromProfile(profile) }];
+  const plan = await extractSearchPlan(messages);
+  applyProfileOverrides(plan, profile);
+  return plan;
+}
+
+/** Non-streaming search for a profile (used by the saved-search alert cron). No enrichment. */
+export async function searchForProfile(profile: WizardProfile): Promise<NormalizedListing[]> {
+  const plan = await buildPlanForProfile(profile);
+  const { listings } = await searchAndRank(plan);
+  return listings;
+}
+
 export async function runConversationalSearch(
   messages: ChatMessage[],
   send: SendFn,
