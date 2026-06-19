@@ -16,15 +16,19 @@ export default function Home() {
 
   return (
     <div className="relative min-h-dvh overflow-hidden" style={{ background: "var(--md-surface)" }}>
-      {/* expressive surface blobs */}
-      <div
-        className="pointer-events-none absolute -left-24 top-6 -z-10 h-80 w-80 rounded-full blur-3xl opacity-50"
-        style={{ background: "var(--md-primary-container)" }}
-      />
-      <div
-        className="pointer-events-none absolute -right-24 top-52 -z-10 h-80 w-80 rounded-full blur-3xl opacity-40"
-        style={{ background: "var(--md-tertiary-container)" }}
-      />
+      {/* expressive surface blobs (landing brings its own centered glow) */}
+      {stage !== "landing" && (
+        <>
+          <div
+            className="pointer-events-none absolute -left-24 top-6 -z-10 h-80 w-80 rounded-full blur-3xl opacity-50"
+            style={{ background: "var(--md-primary-container)" }}
+          />
+          <div
+            className="pointer-events-none absolute -right-24 top-52 -z-10 h-80 w-80 rounded-full blur-3xl opacity-40"
+            style={{ background: "var(--md-tertiary-container)" }}
+          />
+        </>
+      )}
 
       <AnimatePresence mode="wait">
         <motion.div

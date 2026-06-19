@@ -24,6 +24,9 @@
   --md-on-error-container: #410002;
   --md-warn-container: #ffe1bd;
   --md-on-warn-container: #5a3d00;
+  /* strong teal call-to-action (the "GO" button), white text in both modes */
+  --md-cta: #00747f;
+  --md-on-cta: #ffffff;
   --md-surface: #f4f8f9;
   --md-surface-container-lowest: #ffffff;
   --md-surface-container-low: #eef5f6;
@@ -74,6 +77,8 @@
     --md-on-error-container: #ffdad6;
     --md-warn-container: #4a3000;
     --md-on-warn-container: #ffddb0;
+    --md-cta: #218490;
+    --md-on-cta: #ffffff;
     --md-surface: #04161a;
     --md-surface-container-lowest: #011114;
     --md-surface-container-low: #0c1e22;
