@@ -25,8 +25,8 @@ export function LogoMark({ size = 32 }: { size?: number }) {
       {/* window */}
       <path d="M29.5 33 L31.8 28.5 L36.2 28.5 L38 33 Z" fill="url(#dascarGrad)" />
       {/* wheels */}
-      <circle cx="25" cy="44" r="5" fill="#0b3d22" />
-      <circle cx="43" cy="44" r="5" fill="#0b3d22" />
+      <circle cx="25" cy="44" r="5" fill="#04161a" />
+      <circle cx="43" cy="44" r="5" fill="#04161a" />
       <circle cx="25" cy="44" r="1.9" fill="white" />
       <circle cx="43" cy="44" r="1.9" fill="white" />
     </svg>

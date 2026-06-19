@@ -40,6 +40,22 @@ const MILEAGE_STOPS = [
 ];
 const OLDEST_YEAR = 1981; // 17-digit VINs standardized in 1981 — the floor the APIs reliably cover
 
+// One genuinely-useful "Pro tip" per step (index matches the steps array order below),
+// to guide a buyer like a master-mechanic friend.
+const STEP_TIPS = [
+  "Set your max a little below your true ceiling — leave ~10% for taxes, fees, and a pre-purchase inspection.",
+  "Widening your radius even a little often unlocks better-priced cars — a few hours' drive can save thousands.",
+  "Counting car seats? Three across the back is tight in most sedans — a midsize SUV or 3-row is far easier.",
+  "The sweet spot is often 3–5 years old: the first owner already ate the steep depreciation, and it's still modern.",
+  "How miles were driven matters more than the number — 100k highway miles can beat 60k of stop-and-go. ~12k/year is average.",
+  "Be honest about real use: most 'I might tow or off-road' buyers rarely do, and pay for that capability in fuel every day.",
+  "You usually can't max everything — picking your top one or two priorities gets you sharper, more honest matches.",
+  "AWD helps you go in snow but not stop — good winter tires on FWD often matter more, and AWD costs more to run and repair.",
+  "Love a manual? Great for engagement and theft resistance, but they're rare — expect a smaller pool and some patience.",
+  "Hatchbacks and wagons swallow more cargo than a sedan and park easier than an SUV — an underrated sweet spot.",
+  "Naming a specific trim or engine (e.g. 'Z51', 'TDI', 'Nismo') narrows results fast — leave it blank if you're still exploring.",
+];
+
 export function Wizard({ onComplete }: { onComplete: (profile: WizardProfile) => void }) {
   const [profile, setProfile] = useState<WizardProfile>(DEFAULT_PROFILE);
   const [fuelRating, setFuelRating] = useState(3);
@@ -111,6 +127,11 @@ export function Wizard({ onComplete }: { onComplete: (profile: WizardProfile) =>
               </p>
             )}
             <div className="mt-7">{current.body}</div>
+            {STEP_TIPS[step] && (
+              <div className="mt-7">
+                <ProTip>{STEP_TIPS[step]}</ProTip>
+              </div>
+            )}
           </motion.div>
         </AnimatePresence>
       </div>
@@ -455,6 +476,18 @@ function buildSteps(
 }
 
 // ---- input primitives ----
+
+function ProTip({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="md-protip text-sm">
+      <span aria-hidden className="text-base leading-none">💡</span>
+      <span>
+        <span className="md-protip-label mb-0.5 block">Pro tip</span>
+        <span style={{ color: "var(--md-on-surface-variant)" }}>{children}</span>
+      </span>
+    </div>
+  );
+}
 
 function Label({ children }: { children: React.ReactNode }) {
   return (

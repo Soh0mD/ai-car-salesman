@@ -6,42 +6,43 @@
    ============================================================ */
 
 :root {
-  /* color roles — light */
-  --md-primary: #1c6b3f;
+  color-scheme: light;
+  /* color roles — Teal & Timber (light) */
+  --md-primary: #00747f;
   --md-on-primary: #ffffff;
-  --md-primary-container: #a6f4c4;
-  --md-on-primary-container: #00210f;
-  --md-secondary: #4f6353;
-  --md-secondary-container: #d3e8d4;
-  --md-on-secondary-container: #0e1f14;
-  --md-tertiary: #38656f;
-  --md-tertiary-container: #bce9f6;
-  --md-on-tertiary-container: #001f27;
+  --md-primary-container: #a6eef7;
+  --md-on-primary-container: #00363d;
+  --md-secondary: #0e7c8b;
+  --md-secondary-container: #c8eef3;
+  --md-on-secondary-container: #00363c;
+  --md-tertiary: #8a5a2b;
+  --md-tertiary-container: #ffdcc3;
+  --md-on-tertiary-container: #5b3a13;
   --md-error: #ba1a1a;
   --md-on-error: #ffffff;
   --md-error-container: #ffdad6;
   --md-on-error-container: #410002;
-  --md-warn-container: #ffe08a;
-  --md-on-warn-container: #2a1d00;
-  --md-surface: #f6fbf2;
+  --md-warn-container: #ffe1bd;
+  --md-on-warn-container: #5a3d00;
+  --md-surface: #f4f8f9;
   --md-surface-container-lowest: #ffffff;
-  --md-surface-container-low: #f0f5ec;
-  --md-surface-container: #eaefe6;
-  --md-surface-container-high: #e4eae0;
-  --md-surface-container-highest: #dee4da;
-  --md-on-surface: #171d17;
-  --md-on-surface-variant: #404941;
-  --md-outline: #707971;
-  --md-outline-variant: #bfc9bd;
-  --md-inverse-surface: #2c322c;
-  --md-inverse-on-surface: #edf2e8;
+  --md-surface-container-low: #eef5f6;
+  --md-surface-container: #e8f0f1;
+  --md-surface-container-high: #e1ebec;
+  --md-surface-container-highest: #d9e5e6;
+  --md-on-surface: #0b1e22;
+  --md-on-surface-variant: #44595e;
+  --md-outline: #6f7a7c;
+  --md-outline-variant: #bdcccd;
+  --md-inverse-surface: #213337;
+  --md-inverse-on-surface: #ecf3f4;
 
-  /* shape */
+  /* shape — DESIGN.md scale (sm .25 / default .5 / md .75 / lg 1 / xl 1.5rem) */
   --md-corner-xs: 4px;
   --md-corner-sm: 8px;
   --md-corner-md: 12px;
   --md-corner-lg: 16px;
-  --md-corner-xl: 28px;
+  --md-corner-xl: 24px;
   --md-corner-full: 999px;
 
   /* motion — M3 emphasized easing */
@@ -55,46 +56,52 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --md-primary: #8bd8a1;
-    --md-on-primary: #00391d;
-    --md-primary-container: #00522c;
-    --md-on-primary-container: #a6f4c4;
-    --md-secondary: #b7ccb8;
-    --md-secondary-container: #364b3c;
-    --md-on-secondary-container: #d3e8d4;
-    --md-tertiary: #a1ced9;
-    --md-tertiary-container: #1e4d57;
-    --md-on-tertiary-container: #bce9f6;
+    color-scheme: dark;
+    /* color roles — Teal & Timber (dark, from DESIGN.md) */
+    --md-primary: #a2ceda;
+    --md-on-primary: #013640;
+    --md-primary-container: #13424c;
+    --md-on-primary-container: #bdeaf6;
+    --md-secondary: #7dd4e1;
+    --md-secondary-container: #007682;
+    --md-on-secondary-container: #bdf6ff;
+    --md-tertiary: #f5bb8e;
+    --md-tertiary-container: #593311;
+    --md-on-tertiary-container: #ffdcc3;
     --md-error: #ffb4ab;
     --md-on-error: #690005;
     --md-error-container: #93000a;
     --md-on-error-container: #ffdad6;
-    --md-warn-container: #5a4200;
-    --md-on-warn-container: #ffe08a;
-    --md-surface: #0f140f;
-    --md-surface-container-lowest: #090f0a;
-    --md-surface-container-low: #171d17;
-    --md-surface-container: #1b211b;
-    --md-surface-container-high: #262b25;
-    --md-surface-container-highest: #313630;
-    --md-on-surface: #dee4da;
-    --md-on-surface-variant: #bfc9bd;
-    --md-outline: #8a938a;
-    --md-outline-variant: #404941;
-    --md-inverse-surface: #dee4da;
-    --md-inverse-on-surface: #2c322c;
+    --md-warn-container: #4a3000;
+    --md-on-warn-container: #ffddb0;
+    --md-surface: #04161a;
+    --md-surface-container-lowest: #011114;
+    --md-surface-container-low: #0c1e22;
+    --md-surface-container: #102226;
+    --md-surface-container-high: #1b2d31;
+    --md-surface-container-highest: #26383c;
+    --md-on-surface: #d2e6eb;
+    --md-on-surface-variant: #c0c8ca;
+    --md-outline: #8a9294;
+    --md-outline-variant: #41484a;
+    --md-inverse-surface: #d2e6eb;
+    --md-inverse-on-surface: #223337;
+    /* depth via teal-tinted glows, not muddy black shadows */
+    --md-elev-1: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px 1px rgba(0, 20, 24, 0.35);
+    --md-elev-2: 0 1px 2px rgba(0, 0, 0, 0.35), 0 2px 8px 2px rgba(0, 30, 36, 0.4);
+    --md-elev-3: 0 4px 10px 3px rgba(0, 30, 36, 0.45), 0 1px 3px rgba(0, 0, 0, 0.4);
   }
 }
 
 @theme inline {
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-montserrat);
   --font-mono: var(--font-geist-mono);
 }
 
 body {
   background: var(--md-surface);
   color: var(--md-on-surface);
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
 }
 
 /* ---- type scale ---- */
@@ -194,7 +201,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  border-radius: var(--md-corner-sm);
+  border-radius: var(--md-corner-full);
   border: 1px solid var(--md-outline-variant);
   background: transparent;
   color: var(--md-on-surface-variant);
@@ -310,8 +317,27 @@ body {
 .md-badge {
   display: inline-flex;
   align-items: center;
-  border-radius: var(--md-corner-sm);
-  padding: 0.15rem 0.45rem;
+  border-radius: var(--md-corner-full);
+  padding: 0.2rem 0.55rem;
   font-size: 11px;
   font-weight: 700;
+}
+
+/* wizard "pro tip" callout — sienna/tertiary accented */
+.md-protip {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  border-radius: var(--md-corner-lg);
+  padding: 0.75rem 0.9rem;
+  background: color-mix(in srgb, var(--md-tertiary) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--md-tertiary) 30%, transparent);
+  color: var(--md-on-surface);
+}
+.md-protip-label {
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--md-tertiary);
 }
