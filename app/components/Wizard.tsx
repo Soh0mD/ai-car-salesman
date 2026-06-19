@@ -88,23 +88,37 @@ export function Wizard({ onComplete }: { onComplete: (profile: WizardProfile) =>
 
   return (
     <div className="mx-auto flex min-h-[80vh] w-full max-w-xl flex-col px-5 py-8">
-      {/* progress */}
-      <div className="mb-8">
-        <div
-          className="mb-2 flex justify-between text-xs font-semibold"
-          style={{ color: "var(--md-on-surface-variant)" }}
-        >
-          <span>
+      {/* progress — thin track with a sienna leading-edge "needle" (Stitch) */}
+      <div className="mb-12">
+        <div className="mb-3 flex items-end justify-between">
+          <span
+            className="text-[10px] font-bold uppercase tracking-[0.2em]"
+            style={{ color: "var(--md-on-surface-variant)" }}
+          >
             Step {step + 1} of {total}
           </span>
-          <span>{Math.round(((step + 1) / total) * 100)}%</span>
+          <span className="text-[10px] font-bold tracking-[0.1em]" style={{ color: "var(--md-cta)" }}>
+            {Math.round(((step + 1) / total) * 100)}%
+          </span>
         </div>
-        <div className="md-progress-track">
+        <div
+          className="relative h-1.5 w-full overflow-hidden rounded-full"
+          style={{ background: "var(--md-surface-container-highest)" }}
+        >
           <motion.div
-            className="md-progress-bar"
+            className="relative h-full rounded-full"
+            style={{ background: "var(--md-cta)" }}
             animate={{ width: `${((step + 1) / total) * 100}%` }}
             transition={{ type: "spring", stiffness: 200, damping: 26 }}
-          />
+          >
+            <span
+              className="absolute right-0 top-0 h-full w-[2px]"
+              style={{
+                background: "var(--md-tertiary)",
+                boxShadow: "0 0 8px color-mix(in srgb, var(--md-tertiary) 60%, transparent)",
+              }}
+            />
+          </motion.div>
         </div>
       </div>
 
@@ -120,9 +134,9 @@ export function Wizard({ onComplete }: { onComplete: (profile: WizardProfile) =>
             exit="exit"
             transition={{ type: "spring", stiffness: 320, damping: 30 }}
           >
-            <h2 className="md-headline">{current.title}</h2>
+            <h2 className="md-headline text-center">{current.title}</h2>
             {current.subtitle && (
-              <p className="mt-1.5 text-sm" style={{ color: "var(--md-on-surface-variant)" }}>
+              <p className="mt-2 text-center text-sm" style={{ color: "var(--md-on-surface-variant)" }}>
                 {current.subtitle}
               </p>
             )}
@@ -136,18 +150,25 @@ export function Wizard({ onComplete }: { onComplete: (profile: WizardProfile) =>
         </AnimatePresence>
       </div>
 
-      {/* nav */}
-      <div className="mt-8 flex items-center justify-between gap-3">
+      {/* nav — uppercase Back / luminous-teal Next (Stitch) */}
+      <div className="mt-10 flex items-center justify-between gap-3">
         <button
           onClick={() => go(-1)}
           disabled={step === 0}
-          className="md-btn md-btn-text disabled:invisible"
+          className="flex items-center gap-2 text-sm font-bold uppercase tracking-[0.15em] transition-colors disabled:invisible"
+          style={{ color: "var(--md-on-surface-variant)" }}
         >
-          ← Back
+          <span aria-hidden>←</span> Back
         </button>
-        <button onClick={() => go(1)} disabled={!current.canNext} className="md-btn md-btn-filled">
-          {step === total - 1 ? "Find my cars 🚀" : "Next →"}
-        </button>
+        <motion.button
+          onClick={() => go(1)}
+          disabled={!current.canNext}
+          whileTap={{ scale: 0.96 }}
+          className="flex items-center gap-2 rounded-full px-10 py-4 text-sm font-bold uppercase tracking-[0.15em] shadow-lg disabled:opacity-45"
+          style={{ background: "var(--md-cta)", color: "var(--md-on-cta)" }}
+        >
+          {step === total - 1 ? "Find my cars 🚀" : <>Next <span aria-hidden>→</span></>}
+        </motion.button>
       </div>
     </div>
   );
@@ -661,20 +682,44 @@ function ChoiceGrid<T extends string | number>({
   onChange: (v: T) => void;
 }) {
   return (
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid grid-cols-2 gap-4">
       {options.map((o) => {
         const active = o.value === value;
         return (
           <motion.button
             key={String(o.value)}
             onClick={() => onChange(o.value)}
-            whileTap={{ scale: 0.96 }}
-            className="md-choice"
-            data-selected={active}
+            whileTap={{ scale: 0.98 }}
+            className="flex flex-col items-center rounded-2xl p-6 text-center transition-all"
+            style={
+              active
+                ? {
+                    background: "var(--md-cta)",
+                    boxShadow:
+                      "inset 0 0 0 2px var(--md-primary), 0 0 20px color-mix(in srgb, var(--md-cta) 30%, transparent)",
+                  }
+                : { background: "color-mix(in srgb, var(--md-primary-container) 55%, transparent)" }
+            }
           >
-            <div className="text-3xl">{o.emoji}</div>
-            <div className="mt-2 font-bold">{o.label}</div>
-            <div className="text-xs opacity-70">{o.desc}</div>
+            <span className="mb-3 text-3xl" style={active ? undefined : { filter: "grayscale(1)" }}>
+              {o.emoji}
+            </span>
+            <span
+              className="mb-1 block font-bold"
+              style={{ color: active ? "var(--md-on-cta)" : "var(--md-on-surface)" }}
+            >
+              {o.label}
+            </span>
+            <span
+              className="text-[10px] font-bold uppercase tracking-widest"
+              style={{
+                color: active
+                  ? "color-mix(in srgb, var(--md-on-cta) 80%, transparent)"
+                  : "var(--md-on-surface-variant)",
+              }}
+            >
+              {o.desc}
+            </span>
           </motion.button>
         );
       })}

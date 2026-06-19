@@ -98,12 +98,12 @@ export function DetailModal({
         exit={{ y: 40, opacity: 0 }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
         onClick={(e) => e.stopPropagation()}
-        className="md-card max-h-[92dvh] w-full max-w-lg overflow-y-auto"
-        style={{ background: "var(--md-surface-container)" }}
+        className="md-card max-h-[95dvh] w-full max-w-2xl overflow-y-auto"
+        style={{ background: "var(--md-surface-container)", border: "1px solid var(--md-outline-variant)" }}
       >
         {/* photo */}
         <div
-          className="relative h-56 w-full overflow-hidden rounded-t-[28px]"
+          className="relative h-64 w-full overflow-hidden rounded-t-[28px] md:h-80"
           style={{ background: "var(--md-surface-container-high)" }}
         >
           {photos.length > 0 ? (
@@ -116,62 +116,76 @@ export function DetailModal({
             <>
               <button
                 onClick={() => setIdx((i) => (i - 1 + photos.length) % photos.length)}
-                className="md-btn md-btn-tonal absolute left-2 top-1/2 -translate-y-1/2 !px-3 !py-2"
+                aria-label="Previous photo"
+                className="absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-lg shadow-md backdrop-blur-sm"
+                style={{ background: "color-mix(in srgb, var(--md-surface-container-highest) 70%, transparent)", color: "var(--md-on-surface)" }}
               >
                 ‹
               </button>
               <button
                 onClick={() => setIdx((i) => (i + 1) % photos.length)}
-                className="md-btn md-btn-tonal absolute right-2 top-1/2 -translate-y-1/2 !px-3 !py-2"
+                aria-label="Next photo"
+                className="absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-lg shadow-md backdrop-blur-sm"
+                style={{ background: "color-mix(in srgb, var(--md-surface-container-highest) 70%, transparent)", color: "var(--md-on-surface)" }}
               >
                 ›
               </button>
               <span
-                className="absolute bottom-2 right-3 rounded-full px-2 py-0.5 text-xs font-semibold"
-                style={{ background: "rgba(0,0,0,0.6)", color: "#fff" }}
+                className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest backdrop-blur-md"
+                style={{ background: "color-mix(in srgb, var(--md-surface-container-lowest) 60%, transparent)", color: "var(--md-on-surface)" }}
               >
-                {idx + 1}/{photos.length}
+                {idx + 1} / {photos.length}
               </span>
             </>
           )}
           <button
             onClick={onClose}
             aria-label="Close"
-            className="md-btn md-btn-tonal absolute right-2 top-2 !px-3 !py-2"
+            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full shadow-lg backdrop-blur-sm"
+            style={{ background: "color-mix(in srgb, var(--md-surface-container-highest) 80%, transparent)", color: "var(--md-on-surface)" }}
           >
             ✕
           </button>
         </div>
 
-        <div className="p-5">
-          <div className="flex items-start justify-between gap-3">
-            <h2 className="md-title">{l.title || "Vehicle"}</h2>
-            <span className="shrink-0 text-xl font-black" style={{ color: "var(--md-primary)" }}>
-              {l.price != null ? `$${l.price.toLocaleString()}` : "—"}
-            </span>
+        <div className="space-y-6 p-6 md:p-8">
+          <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
+            <div>
+              <h2 className="text-2xl font-bold leading-tight md:text-3xl">{l.title || "Vehicle"}</h2>
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-[0.1em]" style={{ color: "var(--md-on-surface-variant)" }}>
+                <span>{SOURCE_LABEL[l.source] ?? l.source}</span>
+                {l.dealer_name && <span className="h-1 w-1 rounded-full" style={{ background: "var(--md-outline-variant)" }} />}
+                {l.dealer_name && <span className="truncate">{l.dealer_name}</span>}
+                {l.distance_miles != null && <span className="h-1 w-1 rounded-full" style={{ background: "var(--md-outline-variant)" }} />}
+                {l.distance_miles != null && <span>{l.distance_miles} mi away</span>}
+                <span className="h-1 w-1 rounded-full" style={{ background: "var(--md-outline-variant)" }} />
+                <span style={{ color: "var(--md-primary)" }}>★ Match {l.value_score}/100</span>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-2xl font-bold md:text-3xl" style={{ color: "var(--md-primary)" }}>
+                {l.price != null ? `$${l.price.toLocaleString()}` : "—"}
+              </div>
+            </div>
           </div>
-          <p className="mt-0.5 text-xs" style={{ color: "var(--md-on-surface-variant)" }}>
-            {SOURCE_LABEL[l.source] ?? l.source}
-            {l.dealer_name ? ` · ${l.dealer_name}` : ""} · Match {l.value_score}/100
-          </p>
+
           {l.deal && (
-            <p
-              className="mt-2 text-sm font-semibold"
-              style={{
-                color:
-                  l.deal.tier === "great"
-                    ? "var(--md-primary)"
-                    : l.deal.tier === "high"
-                      ? "var(--md-error)"
-                      : "var(--md-on-surface-variant)",
-              }}
+            <div
+              className="flex items-center gap-3 rounded-lg p-4 text-sm font-bold"
+              style={
+                l.deal.tier === "great"
+                  ? { background: "color-mix(in srgb, var(--md-primary) 10%, transparent)", border: "1px solid color-mix(in srgb, var(--md-primary) 22%, transparent)", color: "var(--md-primary)" }
+                  : l.deal.tier === "high"
+                    ? { background: "color-mix(in srgb, var(--md-error) 10%, transparent)", border: "1px solid color-mix(in srgb, var(--md-error) 22%, transparent)", color: "var(--md-error)" }
+                    : { background: "var(--md-surface-container-high)", color: "var(--md-on-surface-variant)" }
+              }
             >
               {l.deal.tier === "great"
                 ? `💰 Great price — $${Math.abs(l.deal.deltaVsMedian).toLocaleString()} below similar listings`
                 : l.deal.tier === "high"
                   ? `Above market — $${Math.abs(l.deal.deltaVsMedian).toLocaleString()} more than similar listings`
                   : "Priced in line with similar listings"}
-            </p>
+            </div>
           )}
 
           {/* running costs + safety (fetched on demand) */}
@@ -266,7 +280,8 @@ export function DetailModal({
             href={l.listing_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="md-btn md-btn-filled mt-5 w-full"
+            className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg py-4 text-sm font-bold uppercase tracking-wide shadow-lg"
+            style={{ background: "var(--md-cta)", color: "var(--md-on-cta)" }}
           >
             View original listing ↗
           </a>
@@ -278,9 +293,14 @@ export function DetailModal({
             )}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="md-btn md-btn-tonal mt-2 w-full"
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg py-4 text-sm font-bold uppercase tracking-wide"
+            style={{
+              background: "var(--md-surface-container-highest)",
+              color: "var(--md-on-surface)",
+              border: "1px solid var(--md-outline-variant)",
+            }}
           >
-            🔍 Search the web for this car
+            🔍 Search the web
           </a>
           <p
             className="mt-2 text-center text-xs"

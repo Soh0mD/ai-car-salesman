@@ -106,14 +106,33 @@ export function Results({
       {/* advice */}
       {reply ? (
         <div
-          className="mt-4 rounded-3xl px-5 py-4 text-[15px] leading-relaxed"
+          className="mt-4 overflow-hidden rounded-2xl border p-5"
           style={{
-            background: "var(--md-secondary-container)",
-            color: "var(--md-on-secondary-container)",
+            background: "var(--md-surface-container)",
+            borderColor: "color-mix(in srgb, var(--md-cta) 30%, transparent)",
+            boxShadow: "0 0 15px color-mix(in srgb, var(--md-cta) 15%, transparent)",
           }}
         >
-          {shown}
-          {typing && <span className="ml-0.5 inline-block animate-pulse">▌</span>}
+          <div className="flex items-start gap-4">
+            <div
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-lg"
+              style={{ background: "var(--md-cta)", color: "var(--md-on-cta)" }}
+            >
+              ✨
+            </div>
+            <div>
+              <h3
+                className="mb-1 text-sm font-bold uppercase tracking-wider"
+                style={{ color: "var(--md-primary)" }}
+              >
+                Friendly Master Mechanic
+              </h3>
+              <p className="leading-relaxed" style={{ color: "var(--md-on-surface)" }}>
+                {shown}
+                {typing && <span className="ml-0.5 inline-block animate-pulse">▌</span>}
+              </p>
+            </div>
+          </div>
         </div>
       ) : (
         <Loader label="Reading your answers…" />
@@ -196,7 +215,17 @@ export function Results({
 
 function RefineChip({ label, onClick }: { label: string; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className="md-chip">
+    <button
+      type="button"
+      onClick={onClick}
+      className="px-4 py-2 text-xs font-bold uppercase tracking-wide transition-all"
+      style={{
+        borderRadius: "var(--md-corner-md)",
+        background: "var(--md-surface-container)",
+        color: "var(--md-on-surface)",
+        border: "1px solid var(--md-outline-variant)",
+      }}
+    >
       {label}
     </button>
   );
@@ -217,9 +246,17 @@ function ProfileSummary({ profile: p }: { profile: WizardProfile }) {
     ...p.body_styles,
   ].filter(Boolean) as string[];
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="flex flex-wrap gap-2">
       {bits.map((b) => (
-        <span key={b} className="md-chip" style={{ cursor: "default" }}>
+        <span
+          key={b}
+          className="rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-wide"
+          style={{
+            background: "var(--md-surface-container)",
+            border: "1px solid var(--md-outline-variant)",
+            color: "var(--md-on-surface-variant)",
+          }}
+        >
           {b}
         </span>
       ))}

@@ -117,34 +117,63 @@ export function ResultsList({
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-1.5">
-          <label className="text-xs font-semibold" style={{ color: "var(--md-on-surface-variant)" }}>
-            Sort
-          </label>
-          <select
-            value={sort}
-            onChange={(e) => setSort(e.target.value as SortKey)}
-            className="md-field px-2 py-1 text-xs font-semibold"
-            style={{ color: "var(--md-on-surface)" }}
-            aria-label="Sort listings"
-          >
-            {SORTS.map((s) => (
-              <option key={s.key} value={s.key}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-          {(Object.keys(FILTER_LABELS) as FilterKey[]).map((f) => (
-            <button
-              key={f}
-              type="button"
-              onClick={() => toggleFilter(f)}
-              className="md-chip"
-              data-selected={filters.has(f)}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="relative">
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value as SortKey)}
+              aria-label="Sort listings"
+              className="cursor-pointer appearance-none px-5 py-2 pr-9 text-xs font-bold uppercase tracking-wide"
+              style={{
+                background: "var(--md-primary)",
+                color: "var(--md-on-primary)",
+                borderRadius: "var(--md-corner-md)",
+              }}
             >
-              {FILTER_LABELS[f]}
-            </button>
-          ))}
+              {SORTS.map((s) => (
+                <option key={s.key} value={s.key} style={{ textTransform: "none" }}>
+                  {`Sort: ${s.label}`}
+                </option>
+              ))}
+            </select>
+            <span
+              aria-hidden
+              className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs"
+              style={{ color: "var(--md-on-primary)" }}
+            >
+              ▾
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {(Object.keys(FILTER_LABELS) as FilterKey[]).map((f) => {
+              const on = filters.has(f);
+              return (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => toggleFilter(f)}
+                  className="px-4 py-2 text-xs font-bold uppercase tracking-wide transition-all"
+                  style={
+                    on
+                      ? {
+                          borderRadius: "var(--md-corner-md)",
+                          background: "color-mix(in srgb, var(--md-cta) 20%, transparent)",
+                          color: "var(--md-primary)",
+                          border: "1px solid color-mix(in srgb, var(--md-cta) 50%, transparent)",
+                        }
+                      : {
+                          borderRadius: "var(--md-corner-md)",
+                          background: "var(--md-surface-container)",
+                          color: "var(--md-on-surface-variant)",
+                          border: "1px solid var(--md-outline-variant)",
+                        }
+                  }
+                >
+                  {FILTER_LABELS[f]}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -172,15 +201,40 @@ export function ResultsList({
         {compare.length > 0 && (
           <div className="pointer-events-none fixed inset-x-0 bottom-4 z-40 flex justify-center px-4">
             <div
-              className="pointer-events-auto flex items-center gap-3 rounded-full px-4 py-2 shadow-lg"
-              style={{ background: "var(--md-inverse-surface)", color: "var(--md-inverse-on-surface)" }}
+              className="pointer-events-auto flex items-center gap-3 rounded-full border py-2 pl-4 pr-2 shadow-2xl backdrop-blur-xl"
+              style={{
+                background: "color-mix(in srgb, var(--md-surface-container-high) 92%, transparent)",
+                color: "var(--md-on-surface)",
+                borderColor: "color-mix(in srgb, var(--md-cta) 25%, transparent)",
+              }}
             >
-              <span className="text-sm font-semibold">{compare.length} to compare</span>
+              <span className="ml-1 text-xs font-bold uppercase tracking-wide">
+                {compare.length} to compare
+              </span>
+              <div className="flex -space-x-3">
+                {compare.slice(0, 3).map((c) => (
+                  <div
+                    key={idOf(c)}
+                    className="h-9 w-9 overflow-hidden rounded-full"
+                    style={{ border: "2px solid var(--md-surface)", background: "var(--md-surface-container)" }}
+                  >
+                    {c.image_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={c.image_url.replace(/^http:\/\//i, "https://")}
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
+                    ) : null}
+                  </div>
+                ))}
+              </div>
               <button
                 type="button"
                 onClick={() => setShowCompare(true)}
                 disabled={compare.length < 2}
-                className="md-btn md-btn-filled !px-4 !py-1.5 !text-sm"
+                className="rounded-full px-5 py-2 text-xs font-bold uppercase tracking-wide shadow-lg disabled:opacity-50"
+                style={{ background: "var(--md-cta)", color: "var(--md-on-cta)" }}
               >
                 Compare
               </button>
@@ -188,9 +242,9 @@ export function ResultsList({
                 type="button"
                 onClick={() => setCompare([])}
                 aria-label="Clear compare"
-                className="text-sm opacity-70 hover:opacity-100"
+                className="px-1.5 text-sm opacity-70 hover:opacity-100"
               >
-                Clear
+                ✕
               </button>
             </div>
           </div>
