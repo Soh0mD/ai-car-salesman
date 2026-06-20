@@ -57,8 +57,14 @@ const STEP_TIPS = [
   "Naming a specific trim or engine (e.g. 'Z51', 'TDI', 'Nismo') narrows results fast — leave it blank if you're still exploring.",
 ];
 
-export function Wizard({ onComplete }: { onComplete: (profile: WizardProfile) => void }) {
-  const [profile, setProfile] = useState<WizardProfile>(DEFAULT_PROFILE);
+export function Wizard({
+  onComplete,
+  initial,
+}: {
+  onComplete: (profile: WizardProfile) => void;
+  initial?: Partial<WizardProfile>;
+}) {
+  const [profile, setProfile] = useState<WizardProfile>({ ...DEFAULT_PROFILE, ...initial });
   const [fuelRating, setFuelRating] = useState(3);
   const [[step, dir], setStep] = useState<[number, number]>([0, 0]);
 

@@ -13,6 +13,8 @@ type Stage = "landing" | "wizard" | "results" | "chat";
 export default function Home() {
   const [stage, setStage] = useState<Stage>("landing");
   const [profile, setProfile] = useState<WizardProfile | null>(null);
+  // Optional prefill from the landing quick-search bar (body style + budget).
+  const [prefill, setPrefill] = useState<Partial<WizardProfile> | undefined>(undefined);
 
   return (
     <div className="relative min-h-dvh overflow-hidden" style={{ background: "var(--md-surface)" }}>
@@ -39,10 +41,17 @@ export default function Home() {
           transition={{ duration: 0.28, ease: "easeOut" }}
         >
           {stage === "landing" && (
-            <Landing onStart={() => setStage("wizard")} onAdvanced={() => setStage("chat")} />
+            <Landing
+              onStart={(pre) => {
+                setPrefill(pre);
+                setStage("wizard");
+              }}
+              onAdvanced={() => setStage("chat")}
+            />
           )}
           {stage === "wizard" && (
             <Wizard
+              initial={prefill}
               onComplete={(p) => {
                 setProfile(p);
                 setStage("results");

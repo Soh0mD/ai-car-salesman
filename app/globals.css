@@ -100,13 +100,24 @@
 
 @theme inline {
   --font-sans: var(--font-quicksand);
-  --font-mono: var(--font-geist-mono);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   background: var(--md-surface);
   color: var(--md-on-surface);
   font-family: var(--font-quicksand), system-ui, sans-serif;
+}
+
+/* Accessibility: clear keyboard focus ring on all interactive elements */
+:focus-visible {
+  outline: 2px solid var(--md-primary);
+  outline-offset: 2px;
+  border-radius: var(--md-corner-xs);
 }
 
 /* Headlines use Montserrat; body/UI uses Quicksand (Joyride pairing) */
