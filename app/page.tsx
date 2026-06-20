@@ -52,6 +52,7 @@ export default function Home() {
           {stage === "wizard" && (
             <Wizard
               initial={prefill}
+              onHome={() => setStage("landing")}
               onComplete={(p) => {
                 setProfile(p);
                 setStage("results");

@@ -60,9 +60,11 @@ const STEP_TIPS = [
 export function Wizard({
   onComplete,
   initial,
+  onHome,
 }: {
   onComplete: (profile: WizardProfile) => void;
   initial?: Partial<WizardProfile>;
+  onHome: () => void;
 }) {
   const [profile, setProfile] = useState<WizardProfile>({ ...DEFAULT_PROFILE, ...initial });
   const [fuelRating, setFuelRating] = useState(3);
@@ -95,6 +97,14 @@ export function Wizard({
 
   return (
     <div className="mx-auto flex min-h-[80vh] w-full max-w-xl flex-col px-5 py-8">
+      <button
+        onClick={onHome}
+        className="mb-6 flex items-center gap-1.5 self-start text-sm font-bold transition-opacity hover:opacity-80"
+        style={{ color: "var(--md-on-surface-variant)" }}
+      >
+        <span aria-hidden>←</span> Home
+      </button>
+
       {/* progress — thin track with a sienna leading-edge "needle" (Stitch) */}
       <div className="mb-12">
         <div className="mb-3 flex items-end justify-between">

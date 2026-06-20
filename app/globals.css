@@ -105,6 +105,8 @@
 
 html {
   scroll-behavior: smooth;
+  /* paint the surface on the very first frame so there's no white flash before body styles apply */
+  background: var(--md-surface);
 }
 
 body {
@@ -270,6 +272,8 @@ body {
   background: var(--md-surface-container-lowest);
   color: var(--md-on-surface);
   outline: none;
+  padding: 0.6rem 0.9rem;
+  line-height: 1.4;
   transition: border-color 0.15s var(--md-ease-emphasized);
 }
 .md-field:focus {
