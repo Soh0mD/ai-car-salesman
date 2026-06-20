@@ -1,166 +1,262 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Logo } from "./Logo";
+import {
+  IconArrowRight,
+  IconCar,
+  IconChevronDown,
+  IconCoin,
+  IconCompass,
+  IconMessageChatbot,
+  IconRadar2,
+  IconSearch,
+  IconShieldCheck,
+  IconSparkles,
+} from "@tabler/icons-react";
 
-// Ported 1:1 from the Stitch "dascar Landing Page — Teal & Timber Edition" mockup,
-// re-expressed with the app's --md-* tokens so it renders in both light and dark.
+// "Joyride" landing — improved from the user's stitch_joyride_car_finder design:
+// real dascar flows, --md-* tokens (works light + dark), Tabler line icons, self-contained SVG hero.
 
 const PERKS = [
   {
-    emoji: "🔭",
+    icon: IconRadar2,
     tone: "var(--md-primary)",
     title: "One search, every lot",
-    body: "We pull listings from major dealers and local private sellers into one clean, unified feed. Stop hopping between five different sites.",
+    body: "Dealers and private sellers pulled into one clean feed — no juggling ten tabs across Autotrader, eBay, and the rest.",
   },
   {
-    emoji: "🛠️",
+    icon: IconShieldCheck,
     tone: "var(--md-tertiary)",
     title: "Reliability built in",
-    body: "See live recall data, historical complaint patterns, and known mechanical trap flags right on the listing card. No surprises.",
+    body: "Live NHTSA recalls, complaint patterns, and known-trap flags on every car. The other guys show you none of this.",
   },
   {
-    emoji: "💬",
+    icon: IconMessageChatbot,
     tone: "var(--md-primary)",
     title: "It tells you why",
-    body: "We don't just show you cars; we give you real, master-mechanic level buying advice that actively steers you away from money pits.",
+    body: "Real, master-mechanic buying advice that steers you away from money-pit engines and toward cars that actually last.",
   },
 ];
 
-const NAV_LINKS = ["How it Works", "Reliability", "Pricing"];
+const NAV_LINKS = ["How it works", "Reliability", "Pricing"];
+const AVATARS = [
+  { i: "JL", bg: "var(--md-primary-container)" },
+  { i: "RP", bg: "var(--md-tertiary-container)" },
+  { i: "MK", bg: "var(--md-secondary-container)" },
+];
 
 export function Landing({ onStart, onAdvanced }: { onStart: () => void; onAdvanced: () => void }) {
   return (
     <div className="relative flex min-h-dvh flex-col overflow-x-hidden">
-      {/* top nav */}
+      {/* nav */}
       <nav
-        className="fixed top-0 z-50 w-full backdrop-blur-md"
-        style={{ background: "color-mix(in srgb, var(--md-surface) 80%, transparent)" }}
+        className="sticky top-0 z-50 w-full backdrop-blur-md"
+        style={{
+          background: "color-mix(in srgb, var(--md-surface) 70%, transparent)",
+          borderBottom: "1px solid var(--md-outline-variant)",
+        }}
       >
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          <button onClick={onStart} className="active:scale-95 transition-transform">
-            <Logo size={36} />
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+          <button onClick={onStart} className="flex items-center gap-2.5 active:scale-95 transition-transform">
+            <span
+              className="flex h-8 w-8 items-center justify-center rounded-[9px]"
+              style={{ background: "linear-gradient(135deg, var(--md-cta), var(--md-tertiary))", color: "#fff" }}
+            >
+              <IconCar size={18} />
+            </span>
+            <span className="md-title text-xl font-extrabold tracking-tight">
+              das<span style={{ color: "var(--md-primary)" }}>car</span>
+            </span>
           </button>
-          <div className="hidden items-center gap-8 text-sm md:flex">
-            <button onClick={onStart} className="font-semibold" style={{ color: "var(--md-primary)" }}>
-              Find Cars
-            </button>
+          <div className="hidden items-center gap-7 md:flex">
             {NAV_LINKS.map((l) => (
-              <span
-                key={l}
-                className="cursor-default font-medium"
-                style={{ color: "var(--md-on-surface-variant)" }}
-              >
+              <span key={l} className="cursor-default text-sm font-semibold" style={{ color: "var(--md-on-surface-variant)" }}>
                 {l}
               </span>
             ))}
           </div>
-          <button onClick={onStart} className="md-btn md-btn-filled !px-6 !py-2 !text-sm">
-            Get Started
+          <button onClick={onStart} className="md-btn md-btn-filled !px-5 !py-2 !text-sm">
+            Get started <IconArrowRight size={15} />
           </button>
         </div>
       </nav>
 
-      <main className="relative flex flex-grow flex-col px-6 pb-16 pt-24">
-        {/* animated background glow */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 -z-10 flex items-center justify-center overflow-hidden"
-        >
-          <motion.div
-            className="absolute h-[600px] w-[600px] rounded-full blur-[120px] opacity-40"
-            style={{ background: "color-mix(in srgb, var(--md-primary) 16%, transparent)" }}
-            animate={{ x: ["-20%", "-12%"], y: ["-10%", "-18%"], scale: [1, 1.1] }}
-            transition={{ duration: 10, repeat: Infinity, repeatType: "reverse", ease: "easeInOut" }}
-          />
-          <motion.div
-            className="absolute h-[500px] w-[500px] rounded-full blur-[120px] opacity-30"
-            style={{ background: "color-mix(in srgb, var(--md-tertiary) 16%, transparent)" }}
-            animate={{ x: ["20%", "12%"], y: ["10%", "18%"], scale: [1, 1.1] }}
-            transition={{ duration: 12, repeat: Infinity, repeatType: "reverse", ease: "easeInOut" }}
-          />
-        </div>
-
+      <main className="relative flex-grow">
         {/* hero */}
-        <motion.section
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ type: "spring", stiffness: 260, damping: 24 }}
-          className="z-10 mx-auto mb-24 mt-12 flex w-full max-w-4xl flex-col items-center text-center md:mt-24"
-        >
+        <section className="relative mx-auto grid max-w-6xl grid-cols-1 items-center gap-10 px-6 pt-14 lg:grid-cols-[1.05fr_.95fr]">
           <div
-            className="mb-8 inline-flex items-center gap-2 rounded-full border px-4 py-1.5 backdrop-blur-md"
-            style={{
-              borderColor: "color-mix(in srgb, var(--md-outline) 30%, transparent)",
-              background: "color-mix(in srgb, var(--md-surface-container) 60%, transparent)",
-            }}
+            aria-hidden
+            className="pointer-events-none absolute -right-32 -top-24 -z-10 h-[420px] w-[420px] rounded-full blur-3xl"
+            style={{ background: "var(--md-primary)", opacity: 0.18 }}
+          />
+          <motion.div
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ type: "spring", stiffness: 260, damping: 24 }}
           >
-            <span className="h-2 w-2 animate-pulse rounded-full" style={{ background: "var(--md-primary)" }} />
             <span
-              className="text-xs font-semibold uppercase tracking-[0.1em]"
-              style={{ color: "var(--md-on-surface-variant)" }}
+              className="inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-bold"
+              style={{ background: "color-mix(in srgb, var(--md-tertiary) 18%, transparent)", color: "var(--md-tertiary)" }}
             >
-              Beta access now open
+              <IconSparkles size={14} /> Your sidekick for the hunt
             </span>
-          </div>
+            <h1 className="md-display mt-4 leading-[1.08]">
+              Find your next car
+              <br />
+              without the{" "}
+              <span className="relative whitespace-nowrap" style={{ color: "var(--md-primary)" }}>
+                tab chaos
+                <svg
+                  viewBox="0 0 120 12"
+                  preserveAspectRatio="none"
+                  aria-hidden
+                  className="absolute -bottom-2 left-0 h-2.5 w-full"
+                >
+                  <path d="M2,7 Q60,13 118,5" fill="none" stroke="var(--md-tertiary)" strokeWidth="4" strokeLinecap="round" />
+                </svg>
+              </span>
+              .
+            </h1>
+            <p className="mt-5 max-w-lg text-base leading-relaxed" style={{ color: "var(--md-on-surface-variant)" }}>
+              Answer a few quick questions and dascar searches every lot at once, ranks the finds by real
+              value, and flags the lemons before you fall for one. Like a master-mechanic friend in your pocket.
+            </p>
+            <div className="mt-7 flex flex-wrap gap-3">
+              <motion.button
+                onClick={onStart}
+                whileHover={{ y: -3, scale: 1.02 }}
+                whileTap={{ scale: 0.96 }}
+                className="flex items-center gap-2 rounded-full px-6 py-3.5 text-base font-bold shadow-lg"
+                style={{ background: "var(--md-cta)", color: "var(--md-on-cta)" }}
+              >
+                Start the quiz <IconCompass size={18} />
+              </motion.button>
+              <button
+                onClick={onAdvanced}
+                className="rounded-full px-6 py-3.5 text-base font-bold"
+                style={{ background: "transparent", color: "var(--md-primary)", border: "2px solid color-mix(in srgb, var(--md-primary) 45%, transparent)" }}
+              >
+                Describe it yourself
+              </button>
+            </div>
+            <div className="mt-7 flex items-center gap-3">
+              <div className="flex">
+                {AVATARS.map((a, i) => (
+                  <span
+                    key={a.i}
+                    className="flex h-9 w-9 items-center justify-center rounded-full text-[11px] font-bold"
+                    style={{
+                      background: a.bg,
+                      color: "var(--md-on-surface)",
+                      border: "2px solid var(--md-surface)",
+                      marginLeft: i ? "-10px" : 0,
+                    }}
+                  >
+                    {a.i}
+                  </span>
+                ))}
+                <span
+                  className="flex h-9 w-9 items-center justify-center rounded-full text-[11px] font-bold"
+                  style={{ background: "var(--md-surface-container-high)", color: "var(--md-primary)", border: "2px solid var(--md-surface)", marginLeft: "-10px" }}
+                >
+                  5k
+                </span>
+              </div>
+              <span className="text-xs font-semibold" style={{ color: "var(--md-on-surface-variant)" }}>
+                5,000+ searches run · no dealer spam
+              </span>
+            </div>
+          </motion.div>
 
-          <h1 className="md-display mb-6 leading-[1.1]">
-            Find your next car
-            <br />
-            <span style={{ color: "var(--md-primary)" }}>without the tab chaos.</span>
-          </h1>
-
-          <p
-            className="mb-10 max-w-2xl text-lg leading-relaxed md:text-xl"
-            style={{ color: "var(--md-on-surface-variant)" }}
+          {/* hero illustration */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ type: "spring", stiffness: 220, damping: 24, delay: 0.05 }}
+            className="relative"
           >
-            Meet your master mechanic friend. We search the real listings, rank them by value, and flag
-            the lemons before you waste a weekend at the lot. Fun, honest, and actually helpful.
-          </p>
+            <svg viewBox="0 0 320 240" className="block h-auto w-full rounded-2xl" style={{ background: "#0f3b44" }}>
+              <circle cx="248" cy="60" r="34" fill="#e6b88f" opacity="0.55" />
+              <circle cx="248" cy="60" r="22" fill="#f0c79f" />
+              <path d="M0,150 Q80,110 170,140 T320,128 V240 H0 Z" fill="#1c6a6f" />
+              <path d="M0,178 Q90,150 200,176 T320,166 V240 H0 Z" fill="#218490" />
+              <path d="M0,210 Q120,186 220,210 T320,206 V240 H0 Z" fill="#2a99a0" />
+              <path d="M40,236 Q150,150 300,176" fill="none" stroke="#0c2e34" strokeWidth="22" strokeLinecap="round" />
+              <path d="M40,236 Q150,150 300,176" fill="none" stroke="#cfe3e8" strokeWidth="2.5" strokeDasharray="9 11" strokeLinecap="round" opacity="0.7" />
+              <g transform="translate(120,150) rotate(-13)">
+                <ellipse cx="34" cy="44" rx="40" ry="7" fill="#08252b" opacity="0.4" />
+                <rect x="2" y="22" width="64" height="20" rx="9" fill="#c98a5a" />
+                <path d="M12,24 Q18,7 34,7 L48,7 Q58,7 62,24 Z" fill="#e0a877" />
+                <path d="M20,23 Q24,12 34,12 L45,12 Q52,12 55,23 Z" fill="#9fe0e8" />
+                <circle cx="20" cy="42" r="9" fill="#0c2e34" />
+                <circle cx="20" cy="42" r="4" fill="#cfe3e8" />
+                <circle cx="50" cy="42" r="9" fill="#0c2e34" />
+                <circle cx="50" cy="42" r="4" fill="#cfe3e8" />
+              </g>
+            </svg>
+            <motion.div
+              animate={{ y: [0, -7, 0] }}
+              transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut" }}
+              className="absolute right-3 top-3 flex items-center gap-2.5 rounded-xl px-3 py-2 backdrop-blur-md"
+              style={{ background: "color-mix(in srgb, var(--md-surface-container-lowest) 78%, transparent)", border: "1px solid color-mix(in srgb, var(--md-primary) 25%, transparent)" }}
+            >
+              <span className="flex h-7 w-7 items-center justify-center rounded-full" style={{ background: "var(--md-primary)", color: "var(--md-on-primary)" }}>
+                <IconShieldCheck size={17} />
+              </span>
+              <span>
+                <span className="block text-[10px] font-semibold" style={{ color: "var(--md-on-surface-variant)" }}>
+                  Recalls &amp; complaints
+                </span>
+                <span className="block text-[13px] font-bold">Checked on every car</span>
+              </span>
+            </motion.div>
+          </motion.div>
+        </section>
 
-          <div className="flex flex-col items-center gap-4">
-            <motion.button
+        {/* quick search bar */}
+        <section className="relative z-10 mx-auto mt-6 max-w-5xl px-6">
+          <div
+            className="flex flex-col gap-3 rounded-2xl p-3.5 shadow-xl md:flex-row md:items-center"
+            style={{ background: "var(--md-surface-container-lowest)", border: "1px solid var(--md-outline-variant)" }}
+          >
+            <div className="flex flex-1 items-center gap-2.5 rounded-xl px-3.5 py-3" style={{ background: "var(--md-surface-container-low)", border: "1.5px solid var(--md-outline-variant)" }}>
+              <IconCar size={18} style={{ color: "var(--md-tertiary)" }} />
+              <span className="flex-1 text-sm font-semibold" style={{ color: "var(--md-on-surface-variant)" }}>Any body style</span>
+              <IconChevronDown size={15} style={{ color: "var(--md-outline)" }} />
+            </div>
+            <div className="flex flex-1 items-center gap-2.5 rounded-xl px-3.5 py-3" style={{ background: "var(--md-surface-container-low)", border: "1.5px solid var(--md-outline-variant)" }}>
+              <IconCoin size={18} style={{ color: "var(--md-tertiary)" }} />
+              <span className="flex-1 text-sm font-semibold" style={{ color: "var(--md-on-surface-variant)" }}>Any budget</span>
+              <IconChevronDown size={15} style={{ color: "var(--md-outline)" }} />
+            </div>
+            <button
               onClick={onStart}
-              whileHover={{ y: -4, scale: 1.02 }}
-              whileTap={{ scale: 0.96 }}
-              className="flex items-center gap-2 rounded-full px-12 py-4 text-xl font-extrabold shadow-xl"
+              className="flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-bold"
               style={{ background: "var(--md-cta)", color: "var(--md-on-cta)" }}
             >
-              GO <span aria-hidden>→</span>
-            </motion.button>
-            <button
-              onClick={onAdvanced}
-              className="text-sm font-medium underline underline-offset-4"
-              style={{ color: "var(--md-on-surface-variant)" }}
-            >
-              or just describe it in your own words
+              <IconSearch size={17} /> Explore options
             </button>
           </div>
-        </motion.section>
+        </section>
 
-        {/* feature cards */}
-        <section className="z-10 mx-auto mb-12 w-full max-w-6xl">
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+        {/* feature trio */}
+        <section className="mx-auto max-w-6xl px-6 py-14">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             {PERKS.map((p) => (
               <motion.div
                 key={p.title}
                 whileHover={{ y: -4 }}
-                className="flex flex-col items-start p-8"
-                style={{
-                  background: "var(--md-surface-container)",
-                  borderRadius: "var(--md-corner-lg)",
-                  border: "1px solid color-mix(in srgb, var(--md-outline) 14%, transparent)",
-                  boxShadow: "var(--md-elev-1)",
-                }}
+                className="rounded-2xl p-6"
+                style={{ background: "var(--md-surface-container-low)", border: "1px solid var(--md-outline-variant)" }}
               >
-                <div
-                  className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl"
-                  style={{ background: `color-mix(in srgb, ${p.tone} 14%, transparent)` }}
+                <span
+                  className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl"
+                  style={{ background: `color-mix(in srgb, ${p.tone} 16%, transparent)`, color: p.tone }}
                 >
-                  <span className="text-3xl">{p.emoji}</span>
-                </div>
-                <h3 className="md-title mb-3 text-2xl font-bold">{p.title}</h3>
-                <p className="leading-relaxed" style={{ color: "var(--md-on-surface-variant)" }}>
+                  <p.icon size={23} />
+                </span>
+                <h3 className="md-title mb-2 text-base font-bold">{p.title}</h3>
+                <p className="text-sm leading-relaxed" style={{ color: "var(--md-on-surface-variant)" }}>
                   {p.body}
                 </p>
               </motion.div>
@@ -171,27 +267,21 @@ export function Landing({ onStart, onAdvanced }: { onStart: () => void; onAdvanc
 
       {/* footer */}
       <footer
-        className="w-full border-t py-10"
-        style={{
-          background: "var(--md-surface-container)",
-          borderColor: "color-mix(in srgb, var(--md-outline) 12%, transparent)",
-        }}
+        className="w-full px-6 py-7"
+        style={{ background: "var(--md-surface-container-lowest)", borderTop: "1px solid var(--md-outline-variant)" }}
       >
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-6 md:flex-row">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 md:flex-row">
           <div className="flex items-center gap-2">
-            <span className="text-lg font-extrabold" style={{ color: "var(--md-primary)" }}>
+            <span className="md-title font-extrabold" style={{ color: "var(--md-primary)" }}>
               dascar
             </span>
-            <span className="text-sm" style={{ color: "var(--md-on-surface-variant)" }}>
-              © 2026 dascar. Your master mechanic friend.
+            <span className="text-xs font-medium" style={{ color: "var(--md-on-surface-variant)" }}>
+              © 2026 dascar · your master-mechanic friend
             </span>
           </div>
-          <div
-            className="flex items-center gap-6 text-sm"
-            style={{ color: "var(--md-on-surface-variant)" }}
-          >
-            {["Terms", "Privacy", "Support", "Contact"].map((l) => (
-              <span key={l} className="cursor-default underline-offset-4 hover:underline">
+          <div className="flex gap-5 text-xs font-semibold" style={{ color: "var(--md-on-surface-variant)" }}>
+            {["Privacy", "Terms", "Support"].map((l) => (
+              <span key={l} className="cursor-default hover:underline">
                 {l}
               </span>
             ))}

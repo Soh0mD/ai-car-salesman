@@ -61,15 +61,15 @@
   :root {
     color-scheme: dark;
     /* color roles — Teal & Timber (dark, from DESIGN.md) */
-    --md-primary: #a2ceda;
-    --md-on-primary: #013640;
-    --md-primary-container: #13424c;
-    --md-on-primary-container: #bdeaf6;
-    --md-secondary: #7dd4e1;
-    --md-secondary-container: #007682;
-    --md-on-secondary-container: #bdf6ff;
-    --md-tertiary: #f5bb8e;
-    --md-tertiary-container: #593311;
+    --md-primary: #7dd4e1;
+    --md-on-primary: #06343b;
+    --md-primary-container: #185360;
+    --md-on-primary-container: #9fe0e8;
+    --md-secondary: #5fb5c2;
+    --md-secondary-container: #1a6a73;
+    --md-on-secondary-container: #d6f6fb;
+    --md-tertiary: #e0a877;
+    --md-tertiary-container: #5b3a13;
     --md-on-tertiary-container: #ffdcc3;
     --md-error: #ffb4ab;
     --md-on-error: #690005;
@@ -77,20 +77,20 @@
     --md-on-error-container: #ffdad6;
     --md-warn-container: #4a3000;
     --md-on-warn-container: #ffddb0;
-    --md-cta: #218490;
+    --md-cta: #1f9aa8;
     --md-on-cta: #ffffff;
-    --md-surface: #04161a;
-    --md-surface-container-lowest: #011114;
-    --md-surface-container-low: #0c1e22;
-    --md-surface-container: #102226;
-    --md-surface-container-high: #1b2d31;
-    --md-surface-container-highest: #26383c;
-    --md-on-surface: #d2e6eb;
-    --md-on-surface-variant: #c0c8ca;
-    --md-outline: #8a9294;
-    --md-outline-variant: #41484a;
-    --md-inverse-surface: #d2e6eb;
-    --md-inverse-on-surface: #223337;
+    --md-surface: #10363e;
+    --md-surface-container-lowest: #0a2429;
+    --md-surface-container-low: #0f333b;
+    --md-surface-container: #13424c;
+    --md-surface-container-high: #185360;
+    --md-surface-container-highest: #216e7f;
+    --md-on-surface: #ffffff;
+    --md-on-surface-variant: #bcd2d8;
+    --md-outline: #5f7d84;
+    --md-outline-variant: #2a525b;
+    --md-inverse-surface: #e2e8f0;
+    --md-inverse-on-surface: #13424c;
     /* depth via teal-tinted glows, not muddy black shadows */
     --md-elev-1: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px 1px rgba(0, 20, 24, 0.35);
     --md-elev-2: 0 1px 2px rgba(0, 0, 0, 0.35), 0 2px 8px 2px rgba(0, 30, 36, 0.4);
@@ -99,13 +99,20 @@
 }
 
 @theme inline {
-  --font-sans: var(--font-montserrat);
+  --font-sans: var(--font-quicksand);
   --font-mono: var(--font-geist-mono);
 }
 
 body {
   background: var(--md-surface);
   color: var(--md-on-surface);
+  font-family: var(--font-quicksand), system-ui, sans-serif;
+}
+
+/* Headlines use Montserrat; body/UI uses Quicksand (Joyride pairing) */
+.md-display,
+.md-headline,
+.md-title {
   font-family: var(--font-montserrat), system-ui, sans-serif;
 }
 

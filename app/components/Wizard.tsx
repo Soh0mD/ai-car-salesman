@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { IconBulb } from "@tabler/icons-react";
 import type { WizardProfile } from "@/lib/types";
 
 const CURRENT_YEAR = new Date().getFullYear();
@@ -501,7 +502,9 @@ function buildSteps(
 function ProTip({ children }: { children: React.ReactNode }) {
   return (
     <div className="md-protip text-sm">
-      <span aria-hidden className="text-base leading-none">💡</span>
+      <span aria-hidden style={{ color: "var(--md-tertiary)" }}>
+        <IconBulb size={18} />
+      </span>
       <span>
         <span className="md-protip-label mb-0.5 block">Pro tip</span>
         <span style={{ color: "var(--md-on-surface-variant)" }}>{children}</span>

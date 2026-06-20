@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { NormalizedListing, WizardProfile } from "@/lib/types";
+import { IconSparkles } from "@tabler/icons-react";
 import { runWizardSearch } from "@/lib/search-client";
 import { useRecentlyViewed } from "@/lib/client-store";
 import { ResultsList } from "./ResultsList";
@@ -115,10 +116,10 @@ export function Results({
         >
           <div className="flex items-start gap-4">
             <div
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-lg"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
               style={{ background: "var(--md-cta)", color: "var(--md-on-cta)" }}
             >
-              ✨
+              <IconSparkles size={20} />
             </div>
             <div>
               <h3
