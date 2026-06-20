@@ -130,13 +130,15 @@ export function Landing({
               >
                 Start the quiz <IconCompass size={18} aria-hidden />
               </motion.button>
-              <button
+              <motion.button
                 onClick={onAdvanced}
+                whileHover={{ y: -3, scale: 1.02 }}
+                whileTap={{ scale: 0.96 }}
                 className="rounded-full px-6 py-3.5 text-base font-bold"
                 style={{ background: "transparent", color: "var(--md-primary)", border: "2px solid color-mix(in srgb, var(--md-primary) 45%, transparent)" }}
               >
                 Describe it yourself
-              </button>
+              </motion.button>
             </div>
           </motion.div>
 
