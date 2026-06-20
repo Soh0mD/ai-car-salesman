@@ -1,69 +1,122 @@
 # 🚗 dascar
 
-A conversational used-car finder. Describe what you need in plain English
-("3 kids, hate minivans, live in Indy, good mileage, under $25k") and it:
+**Live:** [dascar.xyz](https://dascar.xyz)
 
-1. uses **Claude** (`claude-sonnet-4-6`) to turn that into a precise search plan +
-   honest buying advice (including which failure-prone powertrains to avoid),
+A guided used-car finder that does the tab-juggling for you. Answer a few quick
+questions (or just describe what you want in plain English) and dascar:
+
+1. uses **Claude Haiku 4.5** to turn your needs into a precise search plan **and**
+   stream warm, master-mechanic buying advice — in a single call,
 2. fans out **concurrently** to live inventory sources,
-3. enriches the top results with **NHTSA recall data**, and
-4. returns ranked, clickable listings — best value first.
+3. enriches each result with **reliability + running-cost + safety** data
+   (NHTSA recalls & complaints, EPA fuel economy, NHTSA safety ratings, plus a
+   curated known-issue layer), and
+4. returns ranked, clickable listings — best value first — each with a price-vs-market
+   **deal** badge and a **Match** score.
 
 The edge over a plain meta-search (AutoTempest, etc.) is the conversational +
-reliability-advice layer, not raw data breadth.
+reliability + buyer-tools layer, not raw data breadth.
+
+## What's inside
+
+**Find & rank**
+- Guided 11-step **wizard** (budget, location, seats, year, mileage, use, priorities,
+  drivetrain, transmission, body styles, enthusiast extras) with a per-step "pro tip".
+- Free-text **chat** mode ("reliable AWD SUV for snowy commutes near Indy, under $22k").
+- Deterministic: temperature-0 extraction + a 30-minute profile-keyed cache, so identical
+  answers give identical results.
+
+**Trust signals on every car**
+- Live **NHTSA recalls** + consumer-complaint volume, and a curated known-issue rule set.
+- **EPA fuel economy** + estimated annual fuel cost + EV range (FuelEconomy.gov).
+- **NHTSA 5-star safety** ratings (fetched on demand in the detail view).
+- A **deal** badge (price vs. comparable in-set listings) distinct from the **Match** score
+  (how well a car fits your search).
+
+**Results UX**
+- Sort + filter, a **compare drawer** (up to 4 cars side-by-side), conversational **refine**
+  chips ("cheaper", "newer", "lower miles", "only AWD"), and an in-site **detail modal**
+  (photo carousel, specs, reliability, running costs, monthly-payment calculator, and an
+  AI "buying tips" helper) — so the experience is the same no matter which site a car is from.
+
+**Stickiness**
+- **Favorites** + **recently-viewed** (localStorage, no backend).
+- **Saved searches + email alerts** for new matches & price drops (needs Upstash + Resend +
+  a Vercel cron; degrades gracefully to "coming soon" when not configured).
+
+**Design** — "Teal & Timber / Joyride": a brighter teal palette with a warm sienna accent,
+Montserrat headlines + Quicksand body, Tabler line icons, and automatic **light/dark** via the
+browser's `prefers-color-scheme`.
 
 ## Stack
-- **Next.js 16** (App Router) + **React 19** + **TypeScript** + **Tailwind v4**
-- **Anthropic SDK** — structured extraction via tool-use
-- Inventory: **Marketcheck** (dealers), **eBay Browse** (private/enthusiast),
-  **Auto.dev** (backup); **NHTSA** for recalls + VIN decode (free, keyless)
-- **Upstash Redis** (optional) for per-IP rate-limit + response cache
-
-The primary experience is a guided wizard (Landing → animated step-by-step questions →
-Results); a free-text chat is kept as an "advanced mode". The wizard's answers
-deterministically drive the search (temperature-0 extraction + profile cache) so identical
-answers give identical results.
+- **Next.js 16** (App Router, Turbopack) + **React 19** + **TypeScript** + **Tailwind v4**
+- **Anthropic SDK** — Claude Haiku 4.5, structured extraction via tool-use + streaming
+- Inventory: **Marketcheck** (dealers), **Auto.dev** (backup), **eBay Browse** (pending
+  production keys); **NHTSA** (recalls/complaints/safety) + **FuelEconomy.gov** (MPG) are
+  free & keyless
+- **Upstash Redis** (optional) — response cache, per-IP rate limit, saved-search storage
+- **Resend** (optional) — saved-search alert emails
+- `framer-motion`, `@tabler/icons-react`
 
 ```
-app/page.tsx            stage machine: landing / wizard / results / chat (framer-motion)
-app/components/         Landing, Wizard, Results, Chat, ResultsList, ListingCard
-app/api/find/route.ts   wizard search (structured profile -> deterministic overrides)
-app/api/chat/route.ts   free-text chat search
-lib/pipeline.ts         shared: stream reply + extract plan + overrides + progressive listings
-lib/llm.ts              streamConversationalReply (text) + extractSearchPlan (tool-use)
-lib/aggregate.ts        searchAndRank (fast) + enrichListings (NHTSA), dedupe, score, sort
-lib/sources/*.ts        marketcheck / ebay / autodev clients
-lib/nhtsa.ts            recall counts + complaint stats + VIN decode
-lib/reliability.ts      curated known-issue rules (deterministic backstop to the LLM)
-lib/search-client.ts    client-side SSE consumption
-lib/limits.ts           rate-limit + cache (no-op without Upstash)
+app/page.tsx              stage machine: landing / wizard / results / chat (framer-motion)
+app/layout.tsx            fonts (Montserrat + Quicksand) + SEO/OG metadata
+app/globals.css           design tokens (light + dark), component classes
+app/opengraph-image.tsx   generated social share card (next/og)
+app/robots.ts, sitemap.ts SEO
+app/components/            Landing, Wizard, Results, ResultsList, ListingCard, DetailModal,
+                          CompareDrawer, SaveSearchButton, Dropdown, Chat, Logo
+app/api/find              wizard search (structured profile -> deterministic overrides)
+app/api/chat              free-text chat search
+app/api/car-intel         on-demand fuel economy + safety for one car
+app/api/advise            AI buying tips for one car (fair-offer range, what to inspect)
+app/api/saved-searches    save/list/delete saved searches (Upstash)
+app/api/alerts/cron       daily alert sweep -> emails new matches / price drops (vercel.json)
+lib/pipeline.ts           shared: single reply+plan stream, overrides, progressive listings
+lib/llm.ts                streamReplyAndPlan (reply + tool-use) + getBuyingTips
+lib/aggregate.ts          searchAndRank (fast) + enrichListings (NHTSA) — dedupe, score, sort, deals
+lib/sources/*.ts          marketcheck / autodev / ebay clients
+lib/nhtsa.ts              recall counts + complaint stats + VIN decode + safety ratings
+lib/fueleconomy.ts        EPA MPG / annual fuel cost / EV range
+lib/reliability.ts        curated known-issue rules (deterministic backstop to the LLM)
+lib/client-store.ts       favorites + recently-viewed + anon id (localStorage)
+lib/saved-searches.ts     saved-search storage (Upstash); lib/email.ts  Resend sender
+lib/limits.ts             rate-limit + cache (no-op without Upstash)
+lib/search-client.ts      client-side SSE consumption
 ```
 
 ## Setup
 1. **Install deps:** `npm install`
-2. **Add keys:** copy `.env.local.example` → `.env.local` and fill in what you have.
-   - **Required:** `ANTHROPIC_API_KEY` (console.anthropic.com). **Set a monthly spend
-     limit** there (e.g. $10) — that cap is what makes a public demo safe.
-   - **Optional** (each missing key just skips that source): `MARKETCHECK_API_KEY`,
-     `EBAY_CLIENT_ID` + `EBAY_CLIENT_SECRET`, `AUTODEV_API_KEY`.
-   - **Optional cost-cap:** `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN`.
+2. **Add keys:** copy `.env.example` → `.env.local` and fill in what you have.
+   - **Required:** `ANTHROPIC_API_KEY` (console.anthropic.com). **Set a monthly spend limit**
+     there — that cap is what makes a public demo safe.
+   - **Recommended** (each missing key just skips that source): `MARKETCHECK_API_KEY`,
+     `AUTODEV_API_KEY`. **Optional:** `EBAY_CLIENT_ID` + `EBAY_CLIENT_SECRET` (production
+     Buy/Browse access).
+   - **Optional infra:** `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` (cache,
+     rate-limit, saved searches); `RESEND_API_KEY` + `ALERT_FROM_EMAIL` and `CRON_SECRET`
+     (saved-search alert emails).
 3. **Run:** `npm run dev` → http://localhost:3000
 
 ## Verify
-- **Reliability layer (no keys needed):** `npm run test:sources` — hits live NHTSA for
-  recall counts + a VIN decode and runs the full aggregate pipeline.
-- **Full loop:** add `ANTHROPIC_API_KEY` (+ at least one inventory key), `npm run dev`,
-  and try an example prompt. You should see advice stream in, then ranked listing cards.
+- **Reliability layer (no keys needed):** `npm run test:sources` — hits live NHTSA for recall
+  counts + a VIN decode and runs the full aggregate pipeline.
+- **Full loop:** add `ANTHROPIC_API_KEY` (+ at least one inventory key), `npm run dev`, and try
+  the wizard or a chat prompt. You should see advice stream in, then ranked listing cards.
 
 ## Deploy (capped public demo)
 1. Push to GitHub.
 2. Import the repo at vercel.com (free). Framework auto-detects as Next.js.
 3. Add the same env vars in **Vercel → Project → Settings → Environment Variables**.
 4. Deploy. Confirm the Anthropic spend limit is set, and (recommended) add Upstash so the
-   per-IP rate limit is live. Worst-case abuse then = a `429`, never a surprise bill.
+   per-IP rate limit + caching are live. Worst-case abuse then = a `429`, never a surprise bill.
+5. Saved-search alerts also need Resend (`RESEND_API_KEY`, `ALERT_FROM_EMAIL`) + `CRON_SECRET`;
+   the daily cron is defined in `vercel.json`.
 
 ## Notes
 - Inventory mappers (`lib/sources/*.ts`) degrade gracefully if an API renames a field;
   sanity-check the mapping once with `npm run test:sources` after adding each key.
-- Facebook Marketplace was deliberately excluded (no API, violates Meta ToS, scrapers
-  break constantly). Add it later via an Apify actor + webhook if you really want it.
+- Listing images use plain `<img loading="lazy">` (dealer image domains are unbounded, so
+  `next/image` would add proxy cost for no real gain).
+- Facebook Marketplace was deliberately excluded (no API, violates Meta ToS, scrapers break
+  constantly).
