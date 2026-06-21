@@ -8,7 +8,7 @@ export const maxDuration = 20;
 
 /** On-demand, deterministic buying tips for one car (triggered from the detail modal). */
 export async function POST(req: NextRequest) {
-  let body: { year?: number; make?: string; model?: string; trim?: string; price?: number; mileage?: number };
+  let body: { year?: number; make?: string; model?: string; trim?: string; price?: number; mileage?: number; privateSeller?: boolean };
   try {
     body = await req.json();
   } catch {
@@ -22,7 +22,8 @@ export async function POST(req: NextRequest) {
 
   // Bucket the price so trivially-different asks share a cache entry (still deterministic).
   const priceBucket = body.price != null ? Math.round(body.price / 1000) : 0;
-  const cacheKey = `acs:advise:${body.year}|${body.make}|${body.model}|${body.trim ?? ""}|${priceBucket}`.toLowerCase();
+  const seller = body.privateSeller ? "p" : "d";
+  const cacheKey = `acs:advise:${body.year}|${body.make}|${body.model}|${body.trim ?? ""}|${priceBucket}|${seller}`.toLowerCase();
   const cached = await cacheGet<AdviceResult>(cacheKey);
   if (cached) return Response.json(cached);
 
@@ -34,6 +35,7 @@ export async function POST(req: NextRequest) {
       trim: body.trim ?? null,
       price: body.price ?? null,
       mileage: body.mileage ?? null,
+      privateSeller: body.privateSeller ?? false,
     });
     await cacheSet(cacheKey, tips);
     return Response.json(tips);

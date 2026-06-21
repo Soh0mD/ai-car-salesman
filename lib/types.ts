@@ -126,6 +126,8 @@ export interface AdviceResult {
   summary: string;
   inspect: string[];
   questions: string[];
+  /** Ready-to-send, copy-pasteable message to the seller/dealer (negotiation opener). */
+  dealer_message: string | null;
 }
 
 /** The single shape every inventory source is normalized into. */
@@ -145,6 +147,9 @@ export interface NormalizedListing {
   images: string[]; // full photo set, for the in-site detail view
   listing_url: string;
   dealer_name: string | null;
+  /** Dealer city/state when the source provides it — used for dealer-reputation lookups. */
+  dealer_city: string | null;
+  dealer_state: string | null;
   drivetrain: string | null;
   transmission: string | null;
   fuel_type: string | null;
@@ -157,6 +162,8 @@ export interface NormalizedListing {
   reliability_flag: ReliabilityFlag | null;
   /** Price-vs-market deal signal, computed from in-set comparables (null if too few). */
   deal: DealInfo | null;
+  /** True when the listing text marks it Certified Pre-Owned (manufacturer-backed warranty). */
+  cpo: boolean;
   /** 0..100 composite of price-vs-budget, proximity, recalls, reliability — i.e. "Match". */
   value_score: number;
 }

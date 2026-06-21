@@ -64,6 +64,8 @@ interface EbayItem {
 }
 
 const YEAR_RE = /\b(19[8-9]\d|20[0-4]\d)\b/;
+// Certified Pre-Owned marker (see marketcheck.ts for rationale on excluding bare "certified").
+const CPO_RE = /\bcpo\b|certified pre[\s-]?owned/i;
 
 function mapItem(item: EbayItem, hint: SuggestedModel | null): NormalizedListing | null {
   if (!item.itemWebUrl) return null;
@@ -86,6 +88,8 @@ function mapItem(item: EbayItem, hint: SuggestedModel | null): NormalizedListing
     images: item.image?.imageUrl ? [item.image.imageUrl] : [],
     listing_url: item.itemWebUrl,
     dealer_name: item.seller?.username ?? null,
+    dealer_city: null, // eBay sellers are private parties; no dealer location to look up
+    dealer_state: null,
     drivetrain: null,
     transmission: null,
     fuel_type: null,
@@ -95,6 +99,7 @@ function mapItem(item: EbayItem, hint: SuggestedModel | null): NormalizedListing
     complaints: null,
     reliability_flag: null,
     deal: null,
+    cpo: CPO_RE.test(title),
     value_score: 0,
   };
 }

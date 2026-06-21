@@ -221,6 +221,11 @@ export function ListingCard({
             <Badge title="Match: how well it fits your search — price, distance, mileage & reliability">
               Match {l.value_score}
             </Badge>
+            {l.cpo && (
+              <Badge tone="good" title="Certified Pre-Owned — manufacturer-backed warranty may apply">
+                ✓ CPO
+              </Badge>
+            )}
             {l.reliability_flag && (
               <Badge tone={l.reliability_flag.severity === "avoid" ? "danger" : "warn"}>
                 {l.reliability_flag.severity === "avoid" ? "⚠ Known issue" : "⚠ Heads up"}

@@ -15,6 +15,21 @@ import { searchPlanSchema, type SearchPlan, type AdviceResult } from "./types";
 // (`claude-4.7-opus` from the original spec does not exist.)
 const MODEL = "claude-haiku-4-5";
 
+/**
+ * Timing context injected into the advice prompts so the AI can tell the buyer whether now is
+ * a good moment to buy this segment. Computed at call time from the current month — no API.
+ */
+function getSeasonalContext(): string {
+  const m = new Date().getMonth(); // 0 = Jan
+  if (m >= 9)
+    return "TIMING: It's Q4 (Oct-Dec) — the best time of year to buy. Dealers are clearing year-end inventory under quota pressure, so buyers have unusual leverage. Encourage a firm offer.";
+  if (m <= 1)
+    return "TIMING: It's winter — convertibles and sports cars are at their annual price low, while AWD/4WD demand (and prices) run high. Mention this if relevant to the car.";
+  if (m <= 4)
+    return "TIMING: It's spring — truck and SUV prices start climbing into summer. Fuel-efficient sedans are good value right now before gas prices rise.";
+  return "TIMING: It's summer — convertibles and sporty cars command a seasonal premium; SUVs/trucks are in demand. Q4 will bring better deals if the buyer can wait.";
+}
+
 // Shared domain knowledge, used by both calls so the advice and the search stay consistent.
 const DOMAIN_RULES = `DOMAIN RULES — apply these proactively, the user will not know to ask:
 - Map life situations to needs: "3 kids" / "family" -> needs 5+ seats (often 6-7 with car seats). "good mileage" / "commute" -> prioritize fuel efficiency.
@@ -161,7 +176,7 @@ export async function streamReplyAndPlan(
     model: MODEL,
     max_tokens: 1200, // room for the short prose reply + the tool-call JSON
     temperature: 0, // deterministic wording + repeatable model picks
-    system: COMBINED_SYSTEM_PROMPT,
+    system: `${COMBINED_SYSTEM_PROMPT}\n\n${getSeasonalContext()}`,
     tools: [SEARCH_PLAN_TOOL],
     tool_choice: { type: "auto" }, // "auto" lets prose + tool_use coexist; a forced tool hides text
     messages: messages.map((m) => ({ role: m.role, content: m.content })),
@@ -218,10 +233,11 @@ export async function extractSearchPlan(messages: ChatMessage[]): Promise<Search
 
 const ADVICE_SYSTEM_PROMPT = `You are a veteran used-car buyer and master mechanic. Given one specific used car (year/make/model/trim, asking price, mileage), produce concise, model-specific buying guidance by calling the give_buying_tips tool.
 
-- fair_offer_low / fair_offer_high: a realistic out-the-door negotiation range in USD for THIS car given its price and mileage. If price is unknown, use null for both.
+- fair_offer_low / fair_offer_high: a realistic out-the-door negotiation range in USD for THIS car given its price and mileage. When the asking price is provided you MUST fill in BOTH numbers (typically a few percent below asking up to around asking). Use null for both ONLY when the asking price is unknown.
 - summary: one or two plain sentences on whether the asking price is reasonable and the single biggest thing to know about this model.
 - inspect: 3-5 SPECIFIC things to check on this exact model/generation (known weak points, e.g. "check for CVT shudder on 2013-2017 Nissan", "inspect subframe rust on northern cars"), not generic advice.
 - questions: 3-4 sharp questions to ask the seller (service history, accidents, ownership).
+- dealer_message: a 3-4 sentence message the buyer can copy-paste and send the seller/dealer as their opening contact. Polite, direct and confident — never aggressive or pushy. Reference the specific car (year make model), express genuine interest, state a specific offer right around fair_offer_low (or, if price is unknown, ask for their best out-the-door price), and ask for a reply. Plain text, no markdown, no placeholders like [name] or [phone] — write it ready to send as-is.
 
 Be specific to the model and its known issues. Plain text in each string — no markdown.`;
 
@@ -236,8 +252,9 @@ const ADVICE_TOOL: Anthropic.Tool = {
       summary: { type: "string" },
       inspect: { type: "array", items: { type: "string" } },
       questions: { type: "array", items: { type: "string" } },
+      dealer_message: { type: "string" },
     },
-    required: ["summary", "inspect", "questions"],
+    required: ["summary", "inspect", "questions", "dealer_message"],
   },
 };
 
@@ -249,18 +266,25 @@ export async function getBuyingTips(car: {
   trim: string | null;
   price: number | null;
   mileage: number | null;
+  privateSeller?: boolean;
 }): Promise<AdviceResult> {
   const client = getClient();
   const desc =
     `Car: ${[car.year, car.make, car.model, car.trim].filter(Boolean).join(" ")}. ` +
     `Asking price: ${car.price != null ? `$${car.price.toLocaleString()}` : "unknown"}. ` +
-    `Mileage: ${car.mileage != null ? `${car.mileage.toLocaleString()} miles` : "unknown"}.`;
+    `Mileage: ${car.mileage != null ? `${car.mileage.toLocaleString()} miles` : "unknown"}. ` +
+    `Seller type: ${car.privateSeller ? "private party (an individual, not a dealership)" : "a dealership"}.`;
+
+  // The negotiation message + register differ for a private seller vs. a dealer.
+  const sellerNote = car.privateSeller
+    ? `\n\nSELLER CONTEXT: This is a PRIVATE-PARTY listing. In dealer_message address an individual seller (not a dealership): warm and personable, say "your asking price" (never "out-the-door price", which is dealer-only jargon), and offer to arrange viewing/pickup. Inspection/questions should suit a private sale (ask why they're selling, maintenance records, title in hand).`
+    : `\n\nSELLER CONTEXT: This is a DEALERSHIP listing. dealer_message may use dealer terms like "out-the-door price".`;
 
   const response = await client.messages.create({
     model: MODEL,
-    max_tokens: 700,
+    max_tokens: 900, // room for the added dealer_message
     temperature: 0,
-    system: ADVICE_SYSTEM_PROMPT,
+    system: `${ADVICE_SYSTEM_PROMPT}\n\n${getSeasonalContext()}${sellerNote}`,
     tools: [ADVICE_TOOL],
     tool_choice: { type: "tool", name: ADVICE_TOOL.name },
     messages: [{ role: "user", content: desc }],
@@ -277,5 +301,50 @@ export async function getBuyingTips(car: {
     summary: input.summary ?? "",
     inspect: input.inspect ?? [],
     questions: input.questions ?? [],
+    dealer_message: input.dealer_message ?? null,
   };
+}
+
+// ---- Wave 5: AI photo damage scan (Haiku vision) ------------------------------------------
+
+const NO_DAMAGE = "No visible damage detected in this photo.";
+
+const PHOTO_SYSTEM_PROMPT = `You are a meticulous used-car inspector. You will be shown ONE listing photo of a specific car. In 1-2 plain sentences, describe any visible damage, rust, dents, scratches, mismatched/repainted panels, cracked glass, worn tires, or aftermarket modifications. Be honest and specific — a buyer is relying on this. If the photo shows no visible problems (or is an interior/detail shot with nothing wrong), respond with EXACTLY this sentence and nothing else: "${NO_DAMAGE}". No markdown, no preamble.`;
+
+export interface PhotoScanResult {
+  assessment: string;
+  hasDamage: boolean;
+}
+
+/** Vision scan of a single listing photo for visible damage. Deterministic (temperature 0). */
+export async function scanPhotoForDamage(
+  photoUrl: string,
+  car: { year: number | null; make: string | null; model: string | null },
+): Promise<PhotoScanResult> {
+  const client = getClient();
+  const label = [car.year, car.make, car.model].filter(Boolean).join(" ") || "used car";
+
+  const response = await client.messages.create({
+    model: MODEL,
+    max_tokens: 200,
+    temperature: 0,
+    system: PHOTO_SYSTEM_PROMPT,
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "image", source: { type: "url", url: photoUrl } },
+          { type: "text", text: `This is a photo of a ${label}. What do you see?` },
+        ],
+      },
+    ],
+  });
+
+  const assessment = response.content
+    .filter((b): b is Anthropic.TextBlock => b.type === "text")
+    .map((b) => b.text)
+    .join(" ")
+    .trim();
+  const hasDamage = assessment.length > 0 && !assessment.toLowerCase().startsWith("no visible damage");
+  return { assessment: assessment || NO_DAMAGE, hasDamage };
 }

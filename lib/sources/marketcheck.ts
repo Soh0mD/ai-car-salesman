@@ -53,9 +53,10 @@ async function getJson(url: string): Promise<{ listings?: MCListing[] } | null> 
 
 function mapListing(l: MCListing): NormalizedListing | null {
   if (!l.vdp_url) return null;
+  const title = l.heading ?? [l.build?.year, l.build?.make, l.build?.model].filter(Boolean).join(" ");
   return {
     source: "marketcheck",
-    title: l.heading ?? [l.build?.year, l.build?.make, l.build?.model].filter(Boolean).join(" "),
+    title,
     year: l.build?.year ?? null,
     make: l.build?.make ?? null,
     model: l.build?.model ?? null,
@@ -69,6 +70,8 @@ function mapListing(l: MCListing): NormalizedListing | null {
     images: l.media?.photo_links ?? [],
     listing_url: l.vdp_url,
     dealer_name: l.dealer?.name ?? null,
+    dealer_city: l.dealer?.city ?? null,
+    dealer_state: l.dealer?.state ?? null,
     drivetrain: l.build?.drivetrain ?? null,
     transmission: l.build?.transmission ?? null,
     fuel_type: l.build?.fuel_type ?? null,
@@ -78,9 +81,15 @@ function mapListing(l: MCListing): NormalizedListing | null {
     complaints: null,
     reliability_flag: null,
     deal: null,
+    cpo: CPO_RE.test(`${title} ${l.build?.trim ?? ""}`),
     value_score: 0,
   };
 }
+
+// Certified Pre-Owned marker in listing text. Anchored phrases + the "cpo" token (word-bounded
+// so it doesn't match inside unrelated words). Bare "certified" is deliberately excluded — it
+// shows up in unrelated dealer copy ("certified technicians").
+const CPO_RE = /\bcpo\b|certified pre[\s-]?owned/i;
 
 export async function search(plan: SearchPlan): Promise<NormalizedListing[]> {
   const apiKey = process.env.MARKETCHECK_API_KEY;

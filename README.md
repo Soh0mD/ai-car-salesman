@@ -30,14 +30,31 @@ reliability + buyer-tools layer, not raw data breadth.
 - Live **NHTSA recalls** + consumer-complaint volume, and a curated known-issue rule set.
 - **EPA fuel economy** + estimated annual fuel cost + EV range (FuelEconomy.gov).
 - **NHTSA 5-star safety** ratings (fetched on demand in the detail view).
+- **VIN check** — decodes the VIN (NHTSA VPIC) to confirm it's real and matches the listing's
+  year/make/model (a mismatch is flagged as a fraud risk), plus a one-click deep-link to the
+  free government **title-history** record (salvage/flood/owners) at vehiclehistory.gov.
+- **Certified Pre-Owned** detection — CPO listings are badged and called out (warranty signal).
+- **Dealer reputation** — Google rating + review count next to the dealer (needs a Google
+  Places key; hidden when not configured).
 - A **deal** badge (price vs. comparable in-set listings) distinct from the **Match** score
   (how well a car fits your search).
 
+**Buyer intelligence (in the detail modal)**
+- **5-year cost to own** — fuel + maintenance + insurance + depreciation, with a resale-value
+  outlook and a hold-value indicator (Toyota vs. BMW becomes obvious).
+- **Finance _and_ lease** payment calculators (toggle between them).
+- **EV commute calculator** — enter your commute, see whether a charge covers it and the
+  monthly charging cost vs. an equivalent gas car (EV/PHEV listings only).
+- **AI buying tips** — fair-offer range, model-specific inspection checklist, seller questions,
+  plus a **ready-to-send negotiation message** you can copy and paste to the dealer.
+- **AI photo damage scan** — Claude vision checks a listing photo for visible damage/rust/
+  mismatched panels (user-triggered; rate-limited + cached).
+- Buying advice is **season-aware** (e.g. Q4 dealer-clearance leverage) via the current month.
+
 **Results UX**
-- Sort + filter, a **compare drawer** (up to 4 cars side-by-side), conversational **refine**
-  chips ("cheaper", "newer", "lower miles", "only AWD"), and an in-site **detail modal**
-  (photo carousel, specs, reliability, running costs, monthly-payment calculator, and an
-  AI "buying tips" helper) — so the experience is the same no matter which site a car is from.
+- Sort + filter, a **scarcity** hint when matches are rare, a **compare drawer** (up to 4 cars
+  side-by-side), conversational **refine** chips ("cheaper", "newer", "lower miles", "only AWD"),
+  and an in-site **detail modal** — so the experience is the same no matter which site a car is from.
 
 **Stickiness**
 - **Favorites** + **recently-viewed** (localStorage, no backend).
@@ -56,6 +73,7 @@ browser's `prefers-color-scheme`.
   free & keyless
 - **Upstash Redis** (optional) — response cache, per-IP rate limit, saved-search storage
 - **Resend** (optional) — saved-search alert emails
+- **Google Places API** (optional) — dealer reputation stars + review counts
 - `framer-motion`, `@tabler/icons-react`
 
 ```
@@ -69,14 +87,20 @@ app/components/            Landing, Wizard, Results, ResultsList, ListingCard, D
 app/api/find              wizard search (structured profile -> deterministic overrides)
 app/api/chat              free-text chat search
 app/api/car-intel         on-demand fuel economy + safety for one car
-app/api/advise            AI buying tips for one car (fair-offer range, what to inspect)
+app/api/advise            AI buying tips for one car (offer range, inspect list, negotiation msg)
+app/api/vin-check         VIN decode + listing-spec match (NHTSA VPIC)
+app/api/dealer-info       dealer Google rating (no-op without GOOGLE_PLACES_API_KEY)
+app/api/photo-check       AI vision damage scan of one listing photo (Haiku)
 app/api/saved-searches    save/list/delete saved searches (Upstash)
 app/api/alerts/cron       daily alert sweep -> emails new matches / price drops (vercel.json)
 lib/pipeline.ts           shared: single reply+plan stream, overrides, progressive listings
-lib/llm.ts                streamReplyAndPlan (reply + tool-use) + getBuyingTips
+lib/llm.ts                streamReplyAndPlan + getBuyingTips (w/ negotiation) + scanPhotoForDamage
 lib/aggregate.ts          searchAndRank (fast) + enrichListings (NHTSA) — dedupe, score, sort, deals
-lib/sources/*.ts          marketcheck / autodev / ebay clients
+lib/sources/*.ts          marketcheck / autodev / ebay clients (+ CPO + dealer location)
 lib/nhtsa.ts              recall counts + complaint stats + VIN decode + safety ratings
+lib/vin.ts                VIN verification (VPIC decode + listing-spec mismatch detection)
+lib/ownership-cost.ts     5-year cost of ownership + depreciation/resale estimates
+lib/dealer.ts             dealer reputation via Google Places (optional)
 lib/fueleconomy.ts        EPA MPG / annual fuel cost / EV range
 lib/reliability.ts        curated known-issue rules (deterministic backstop to the LLM)
 lib/client-store.ts       favorites + recently-viewed + anon id (localStorage)
@@ -95,7 +119,7 @@ lib/search-client.ts      client-side SSE consumption
      Buy/Browse access).
    - **Optional infra:** `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` (cache,
      rate-limit, saved searches); `RESEND_API_KEY` + `ALERT_FROM_EMAIL` and `CRON_SECRET`
-     (saved-search alert emails).
+     (saved-search alert emails); `GOOGLE_PLACES_API_KEY` (dealer reputation ratings).
 3. **Run:** `npm run dev` → http://localhost:3000
 
 ## Verify

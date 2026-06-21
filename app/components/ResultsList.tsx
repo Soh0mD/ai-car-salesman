@@ -103,6 +103,14 @@ export function ResultsList({
         >
           <span className="font-semibold" style={{ color: "var(--md-on-surface)" }}>
             {view.length} {view.length === listings.length ? "matches" : `of ${listings.length}`}
+            {view.length <= 5 && (
+              <span
+                className="ml-2 font-bold"
+                style={{ color: view.length <= 2 ? "var(--md-tertiary)" : "var(--md-on-surface-variant)" }}
+              >
+                · {view.length <= 2 ? "very rare find in your area" : "rare find in your area"}
+              </span>
+            )}
             {reliabilityLoading && (
               <span className="ml-2 font-normal" style={{ color: "var(--md-primary)" }}>
                 · checking recalls &amp; complaints…

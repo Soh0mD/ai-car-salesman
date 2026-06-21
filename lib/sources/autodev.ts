@@ -39,13 +39,17 @@ interface AutoDevRecord {
   } | null;
 }
 
+// Certified Pre-Owned marker (see marketcheck.ts for rationale on excluding bare "certified").
+const CPO_RE = /\bcpo\b|certified pre[\s-]?owned/i;
+
 function mapRecord(r: AutoDevRecord): NormalizedListing | null {
   const rl = r.retailListing;
   if (!rl?.vdp) return null; // skip wholesale-only / linkless records
   const v = r.vehicle ?? {};
+  const title = [v.year, v.make, v.model, v.series ?? v.style].filter(Boolean).join(" ");
   return {
     source: "autodev",
-    title: [v.year, v.make, v.model, v.series ?? v.style].filter(Boolean).join(" "),
+    title,
     year: v.year ?? null,
     make: v.make ?? null,
     model: v.model ?? null,
@@ -59,6 +63,8 @@ function mapRecord(r: AutoDevRecord): NormalizedListing | null {
     images: rl.primaryImage ? [rl.primaryImage] : [],
     listing_url: rl.vdp,
     dealer_name: rl.dealer ?? null,
+    dealer_city: rl.city ?? null,
+    dealer_state: rl.state ?? null,
     drivetrain: v.drivetrain ?? null,
     transmission: v.transmission ?? null,
     fuel_type: v.fuel ?? null,
@@ -68,6 +74,7 @@ function mapRecord(r: AutoDevRecord): NormalizedListing | null {
     complaints: null,
     reliability_flag: null,
     deal: null,
+    cpo: CPO_RE.test(`${title} ${v.series ?? ""} ${v.style ?? ""}`),
     value_score: 0,
   };
 }
