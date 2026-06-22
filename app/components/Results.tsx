@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { NormalizedListing, WizardProfile } from "@/lib/types";
-import { IconSparkles } from "@tabler/icons-react";
+import { IconSparkles, IconPencil, IconX, IconLink, IconCheck } from "@tabler/icons-react";
 import { runWizardSearch } from "@/lib/search-client";
 import { useRecentlyViewed } from "@/lib/client-store";
+import { shareUrlForProfile } from "@/lib/share";
 import { ResultsList } from "./ResultsList";
 import { DetailModal } from "./DetailModal";
 import { SaveSearchButton } from "./SaveSearchButton";
@@ -13,9 +14,11 @@ import { SaveSearchButton } from "./SaveSearchButton";
 export function Results({
   profile: initialProfile,
   onRestart,
+  onEditStep,
 }: {
   profile: WizardProfile;
   onRestart: () => void;
+  onEditStep: (stepIndex: number) => void;
 }) {
   const [profile, setProfile] = useState<WizardProfile>(initialProfile);
   const [reply, setReply] = useState(""); // raw accumulated text
@@ -97,12 +100,15 @@ export function Results({
     >
       <div className="mb-5 flex items-center justify-between">
         <h1 className="md-headline">Here&apos;s what I found 🔑</h1>
-        <button onClick={onRestart} className="md-btn md-btn-tonal">
-          Start over
-        </button>
+        <div className="flex items-center gap-2">
+          <CopyLinkButton profile={profile} />
+          <button onClick={onRestart} className="md-btn md-btn-tonal">
+            Start over
+          </button>
+        </div>
       </div>
 
-      <ProfileSummary profile={profile} />
+      <ProfileSummary profile={profile} onEdit={onEditStep} onClear={refine} />
 
       {/* advice */}
       {reply ? (
@@ -148,7 +154,16 @@ export function Results({
         </div>
       )}
 
-      {searching && <Loader label="Searching live inventory…" />}
+      {searching && (
+        <div className="mt-4">
+          <Loader label="Searching live inventory…" />
+          <div className="mt-3 space-y-3">
+            {[0, 1, 2].map((i) => (
+              <SkeletonCard key={i} />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* refine + save */}
       {listings.length > 0 && (
@@ -206,9 +221,37 @@ export function Results({
       </AnimatePresence>
 
       {done && listings.length === 0 && !error && (
-        <p className="mt-6 text-center text-sm" style={{ color: "var(--md-on-surface-variant)" }}>
-          No matching listings came back — try widening your budget, radius, or year range.
-        </p>
+        <div className="mt-6 rounded-2xl border p-5 text-center" style={{ borderColor: "var(--md-outline-variant)", background: "var(--md-surface-container)" }}>
+          <p className="text-sm font-bold">No matches came back for those filters.</p>
+          <p className="mt-1 text-sm" style={{ color: "var(--md-on-surface-variant)" }}>
+            Loosen one and we&apos;ll search again instantly:
+          </p>
+          <div className="mt-4 flex flex-wrap justify-center gap-2">
+            {profile.radius_miles < 99999 && (
+              <RefineChip label="🌍 Search nationwide" onClick={() => refine({ radius_miles: 99999 })} />
+            )}
+            <RefineChip
+              label={`💵 Raise budget to $${Math.round((profile.budget_max * 1.5) / 1000)}k`}
+              onClick={() => refine({ budget_max: Math.round(profile.budget_max * 1.5) })}
+            />
+            {profile.max_mileage < 200000 && (
+              <RefineChip label="🛣️ Allow more miles" onClick={() => refine({ max_mileage: 200000 })} />
+            )}
+            {profile.cylinders > 0 && (
+              <RefineChip label="⚙️ Any cylinder count" onClick={() => refine({ cylinders: 0 })} />
+            )}
+            {(profile.fuels ?? []).length > 0 && (
+              <RefineChip label="⛽ Any fuel type" onClick={() => refine({ fuels: [] })} />
+            )}
+            {profile.drivetrain !== "any" && (
+              <RefineChip label="🚙 Any drivetrain" onClick={() => refine({ drivetrain: "any" })} />
+            )}
+            {(profile.excluded_body_styles ?? []).length > 0 && (
+              <RefineChip label="🚫 Clear exclusions" onClick={() => refine({ excluded_body_styles: [] })} />
+            )}
+            <RefineChip label="✏️ Edit search" onClick={() => onEditStep(0)} />
+          </div>
+        </div>
       )}
     </motion.div>
   );
@@ -232,35 +275,154 @@ function RefineChip({ label, onClick }: { label: string; onClick: () => void }) 
   );
 }
 
-function ProfileSummary({ profile: p }: { profile: WizardProfile }) {
-  const bits = [
-    `$${p.budget_max.toLocaleString()}`,
-    p.radius_miles >= 99999 ? `ZIP ${p.zip_code} · nationwide` : `ZIP ${p.zip_code} · ${p.radius_miles}mi`,
-    p.seats ? `${p.seats}+ seats` : null,
-    `${p.year_min}–${p.year_max}`,
-    `<${(p.max_mileage / 1000).toFixed(0)}k mi`,
-    p.drivetrain !== "any" ? p.drivetrain.toUpperCase() : null,
-    p.transmission !== "any" ? p.transmission : null,
-    p.fuel !== "any" ? p.fuel : null,
-    p.cylinders ? `${p.cylinders}-cyl` : null,
-    p.keywords.trim() ? `"${p.keywords.trim()}"` : null,
-    ...p.body_styles,
-  ].filter(Boolean) as string[];
+// Wizard step indices (must match the order in Wizard.tsx buildSteps) so each chip deep-links
+// back to the step that set it.
+const STEP = {
+  budget: 0,
+  location: 1,
+  seats: 2,
+  years: 3,
+  mileage: 4,
+  drivetrain: 7,
+  transmission: 8,
+  bodyStyles: 9,
+  specifics: 10, // fuel + cylinders + keywords
+} as const;
+
+function ProfileSummary({
+  profile: p,
+  onEdit,
+  onClear,
+}: {
+  profile: WizardProfile;
+  onEdit: (stepIndex: number) => void;
+  onClear: (patch: Partial<WizardProfile>) => void;
+}) {
+  // `clear` (when present) makes the chip removable with an × — only for optional filters; the
+  // required ones (budget, location, years, mileage) are edit-only.
+  const bits: { label: string; step: number; clear?: Partial<WizardProfile> }[] = [
+    { label: `$${p.budget_max.toLocaleString()}`, step: STEP.budget },
+    {
+      label:
+        p.radius_miles >= 99999
+          ? `ZIP ${p.zip_code} · nationwide`
+          : `ZIP ${p.zip_code} · ${p.radius_miles}mi`,
+      step: STEP.location,
+    },
+    ...(p.seats ? [{ label: `${p.seats}+ seats`, step: STEP.seats, clear: { seats: 0 } }] : []),
+    { label: `${p.year_min}–${p.year_max}`, step: STEP.years },
+    { label: `<${(p.max_mileage / 1000).toFixed(0)}k mi`, step: STEP.mileage },
+    ...(p.drivetrain !== "any"
+      ? [{ label: p.drivetrain.toUpperCase(), step: STEP.drivetrain, clear: { drivetrain: "any" as const } }]
+      : []),
+    ...(p.transmission !== "any"
+      ? [{ label: p.transmission, step: STEP.transmission, clear: { transmission: "any" as const } }]
+      : []),
+    ...(p.fuels ?? []).map((f) => ({
+      label: f,
+      step: STEP.specifics,
+      clear: { fuels: p.fuels.filter((x) => x !== f) },
+    })),
+    ...(p.cylinders ? [{ label: `${p.cylinders}-cyl`, step: STEP.specifics, clear: { cylinders: 0 } }] : []),
+    ...(p.keywords.trim()
+      ? [{ label: `"${p.keywords.trim()}"`, step: STEP.specifics, clear: { keywords: "" } }]
+      : []),
+    ...p.body_styles.map((b) => ({
+      label: b,
+      step: STEP.bodyStyles,
+      clear: { body_styles: p.body_styles.filter((x) => x !== b) },
+    })),
+    ...(p.excluded_body_styles ?? []).map((b) => ({
+      label: `no ${b}`,
+      step: STEP.bodyStyles,
+      clear: { excluded_body_styles: p.excluded_body_styles.filter((x) => x !== b) },
+    })),
+  ];
   return (
-    <div className="flex flex-wrap gap-2">
-      {bits.map((b) => (
-        <span
-          key={b}
-          className="rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-wide"
-          style={{
-            background: "var(--md-surface-container)",
-            border: "1px solid var(--md-outline-variant)",
-            color: "var(--md-on-surface-variant)",
-          }}
-        >
-          {b}
-        </span>
-      ))}
+    <div>
+      <div className="flex flex-wrap gap-2">
+        {bits.map((b, i) => (
+          <span
+            key={`${b.label}-${i}`}
+            className="group flex items-center gap-1.5 rounded-full py-1.5 pl-4 pr-2 text-xs font-bold uppercase tracking-wide"
+            style={{
+              background: "var(--md-surface-container)",
+              border: "1px solid var(--md-outline-variant)",
+              color: "var(--md-on-surface-variant)",
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => onEdit(b.step)}
+              title="Tap to edit"
+              className="flex items-center gap-1.5"
+            >
+              {b.label}
+              <IconPencil
+                size={12}
+                aria-hidden
+                className="opacity-40 transition-opacity group-hover:opacity-90"
+                style={{ color: "var(--md-primary)" }}
+              />
+            </button>
+            {b.clear && (
+              <button
+                type="button"
+                onClick={() => onClear(b.clear!)}
+                aria-label={`Remove ${b.label}`}
+                title="Remove this filter"
+                className="flex h-4 w-4 items-center justify-center rounded-full transition-colors hover:bg-[var(--md-surface-container-highest)]"
+                style={{ color: "var(--md-on-surface-variant)" }}
+              >
+                <IconX size={12} aria-hidden />
+              </button>
+            )}
+          </span>
+        ))}
+      </div>
+      <p className="mt-1.5 text-[11px]" style={{ color: "var(--md-on-surface-variant)" }}>
+        Tap a chip to edit it, or ✕ to drop that filter.
+      </p>
+    </div>
+  );
+}
+
+/** Copy a shareable link to this exact search to the clipboard. */
+function CopyLinkButton({ profile }: { profile: WizardProfile }) {
+  const [copied, setCopied] = useState(false);
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(shareUrlForProfile(profile));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* clipboard unavailable */
+    }
+  }
+  return (
+    <button onClick={copy} className="md-btn md-btn-tonal flex items-center gap-1.5" title="Copy a link to this search">
+      {copied ? <IconCheck size={15} aria-hidden /> : <IconLink size={15} aria-hidden />}
+      {copied ? "Copied" : "Copy link"}
+    </button>
+  );
+}
+
+/** Placeholder card shown while live inventory streams in. */
+function SkeletonCard() {
+  return (
+    <div
+      className="flex animate-pulse overflow-hidden rounded-2xl"
+      style={{ background: "var(--md-surface-container)", border: "1px solid var(--md-outline-variant)" }}
+    >
+      <div className="h-28 w-40 shrink-0" style={{ background: "var(--md-surface-container-high)" }} />
+      <div className="flex-1 space-y-2 p-4">
+        <div className="h-4 w-2/3 rounded" style={{ background: "var(--md-surface-container-high)" }} />
+        <div className="h-3 w-1/3 rounded" style={{ background: "var(--md-surface-container-high)" }} />
+        <div className="mt-3 flex gap-2">
+          <div className="h-5 w-16 rounded-full" style={{ background: "var(--md-surface-container-high)" }} />
+          <div className="h-5 w-16 rounded-full" style={{ background: "var(--md-surface-container-high)" }} />
+        </div>
+      </div>
     </div>
   );
 }

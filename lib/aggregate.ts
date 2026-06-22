@@ -63,21 +63,24 @@ function transmissionMatches(t: string | null, want: "manual" | "automatic" | nu
 }
 
 /**
- * True if the listing matches the fuel preference. Marketcheck tags hybrids as "Unleaded"
- * (hybrid-ness is in the model name/heading), so we detect from the name too — not just the
- * fuel_type field — otherwise every hybrid gets wrongly dropped.
+ * True if the listing matches ANY of the wanted fuel types (empty = any). Marketcheck tags
+ * hybrids as "Unleaded" (hybrid-ness is in the model name/heading), so we detect from the name
+ * too — not just the fuel_type field — otherwise every hybrid gets wrongly dropped.
  */
-function fuelMatches(l: NormalizedListing, want: string | null | undefined): boolean {
-  if (!want) return true;
+function fuelMatches(l: NormalizedListing, wanted: string[]): boolean {
+  if (wanted.length === 0) return true;
   const name = `${l.model ?? ""} ${l.title ?? ""}`.toLowerCase();
   const f = (l.fuel_type ?? "").toLowerCase();
   const isHybrid = name.includes("hybrid") || name.includes("plug-in") || f.includes("hybrid");
   const isElectric = f.includes("electric") || name.includes("electric") || /\bev\b/.test(name);
   const isDiesel = f.includes("diesel") || name.includes("diesel") || name.includes("tdi");
-  if (want === "hybrid") return isHybrid;
-  if (want === "electric") return isElectric && !isHybrid; // pure EV, not a plug-in hybrid
-  if (want === "diesel") return isDiesel;
-  return !isElectric && !isDiesel; // gas (hybrids burn gas, so allow them through)
+  const matchOne = (want: string): boolean => {
+    if (want === "hybrid") return isHybrid;
+    if (want === "electric") return isElectric && !isHybrid; // pure EV, not a plug-in hybrid
+    if (want === "diesel") return isDiesel;
+    return !isElectric && !isDiesel; // gas (hybrids burn gas, so allow them through)
+  };
+  return wanted.some(matchOne);
 }
 
 /** True if the listing's cylinder count matches the preference (0/unknown are kept). */
@@ -86,16 +89,26 @@ function cylindersMatches(c: number | null, want: number | null | undefined): bo
   return c === want;
 }
 
-/** True if the listing's drivetrain satisfies any preferred drivetrain (unknowns are kept). */
+/**
+ * True if the listing's drivetrain satisfies any preferred drivetrain (unknowns are kept).
+ * AWD and 4WD are treated as DISTINCT (they are mechanically different): an AWD preference does
+ * not match a 4WD listing and vice-versa. Spelled-out feed labels ("All-Wheel", "Four Wheel",
+ * "4x4") are normalized so they still match the right bucket.
+ */
 function drivetrainMatches(d: string | null, preferred: string[]): boolean {
   if (preferred.length === 0 || !d) return true;
   const dd = d.toLowerCase();
+  const is4wd = dd.includes("4wd") || dd.includes("4x4") || dd.includes("four");
+  // "all-wheel" but guard against "four wheel" also containing "wheel": 4wd is checked first.
+  const isAwd = !is4wd && (dd.includes("awd") || dd.includes("all"));
+  const isFwd = dd.includes("fwd") || dd.includes("front");
+  const isRwd = dd.includes("rwd") || dd.includes("rear");
   return preferred.some((p) => {
     const pp = p.toLowerCase();
-    if (pp.includes("rwd") || pp.includes("rear")) return dd.includes("rwd") || dd.includes("rear");
-    if (pp.includes("fwd") || pp.includes("front")) return dd.includes("fwd") || dd.includes("front");
-    if (pp.includes("awd") || pp.includes("4wd") || pp.includes("4x4") || pp.includes("all"))
-      return ["awd", "4wd", "4x4", "all"].some((k) => dd.includes(k));
+    if (pp.includes("rwd") || pp.includes("rear")) return isRwd;
+    if (pp.includes("fwd") || pp.includes("front")) return isFwd;
+    if (pp.includes("4wd") || pp.includes("4x4") || pp.includes("four")) return is4wd;
+    if (pp.includes("awd") || pp.includes("all")) return isAwd;
     return dd.includes(pp);
   });
 }
@@ -161,7 +174,10 @@ export async function searchAndRank(plan: SearchPlan): Promise<AggregateResult> 
   // Dedupe across sources, then drop excluded body styles + out-of-range year/mileage.
   const excluded = plan.automotive_targets.excluded_body_styles;
   const preferredDrive = plan.automotive_targets.mechanical_filters.preferred_drivetrains;
-  const { year_min, year_max, max_mileage, transmission, fuel_type, cylinders } = plan.constraints;
+  const { budget_max, year_min, year_max, max_mileage, transmission, fuel_type, fuel_types, cylinders } =
+    plan.constraints;
+  // Acceptable fuel set: the multi-select takes precedence, else the single value, else "any".
+  const wantedFuels = fuel_types?.length ? fuel_types : fuel_type ? [fuel_type] : [];
   let listings = dedupe(merged);
   // Sanitize implausible odometers: some feeds report fuel RANGE (e.g. 426 mi) in the mileage
   // field. A used car 4+ model years old can't realistically have under 1,000 miles, so treat
@@ -175,12 +191,13 @@ export async function searchAndRank(plan: SearchPlan): Promise<AggregateResult> 
   listings = listings.filter((l) => {
     if (matchesExcludedBodyStyle(l, excluded)) return false;
     // Only filter when the listing actually reports the field (don't drop unknowns).
+    if (budget_max && l.price && l.price > budget_max) return false;
     if (year_min && l.year && l.year < year_min) return false;
     if (year_max && l.year && l.year > year_max) return false;
     if (max_mileage && l.mileage && l.mileage > max_mileage) return false;
     if (!transmissionMatches(l.transmission, transmission)) return false;
     if (!drivetrainMatches(l.drivetrain, preferredDrive)) return false;
-    if (!fuelMatches(l, fuel_type)) return false;
+    if (!fuelMatches(l, wantedFuels)) return false;
     if (!cylindersMatches(l.cylinders, cylinders)) return false;
     return true;
   });

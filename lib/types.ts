@@ -29,7 +29,10 @@ export const constraintsSchema = z.object({
   year_min: z.number().nullable().optional(),
   year_max: z.number().nullable().optional(),
   transmission: z.enum(["manual", "automatic"]).nullable().optional(),
+  // Single fuel preference (used by the chat/LLM path + source-level filtering when exactly one).
   fuel_type: z.enum(["gas", "hybrid", "electric", "diesel"]).nullable().optional(),
+  // Multi-fuel preference (wizard): a listing matching ANY of these passes. Empty/absent = any.
+  fuel_types: z.array(z.enum(["gas", "hybrid", "electric", "diesel"])).nullable().optional(),
   cylinders: z.number().nullable().optional(),
   keywords: z.string().nullable().optional(),
 });
@@ -80,9 +83,9 @@ export interface WizardProfile {
   fuel_priority: "low" | "medium" | "high";
   safety: number; // 1-5
   fun: number; // 1-5
-  drivetrain: "any" | "awd" | "fwd" | "rwd";
+  drivetrain: "any" | "awd" | "4wd" | "fwd" | "rwd";
   transmission: "any" | "automatic" | "manual";
-  fuel: "any" | "gas" | "hybrid" | "electric" | "diesel";
+  fuels: string[]; // empty = any; values: "gas" | "hybrid" | "electric" | "diesel"
   cylinders: number; // 0 = any
   keywords: string;
   body_styles: string[];

@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
   IconArrowRight,
   IconCar,
   IconCoin,
   IconCompass,
+  IconHistory,
   IconMessageChatbot,
   IconRadar2,
   IconSearch,
@@ -14,6 +15,7 @@ import {
   IconSparkles,
 } from "@tabler/icons-react";
 import type { WizardProfile } from "@/lib/types";
+import { loadLastSearch } from "@/lib/share";
 import { Dropdown } from "./Dropdown";
 
 // "Joyride" landing — real dascar flows, --md-* tokens (light + dark), Tabler line icons,
@@ -55,12 +57,18 @@ const BUDGET_OPTIONS = [
 export function Landing({
   onStart,
   onAdvanced,
+  onResume,
 }: {
   onStart: (prefill?: Partial<WizardProfile>) => void;
   onAdvanced: () => void;
+  onResume: (profile: WizardProfile) => void;
 }) {
   const [bodyStyle, setBodyStyle] = useState("");
   const [budget, setBudget] = useState("");
+  // Last search lives in localStorage — only read after mount to avoid an SSR/hydration mismatch.
+  const [lastSearch, setLastSearch] = useState<WizardProfile | null>(null);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time localStorage read on mount
+  useEffect(() => setLastSearch(loadLastSearch()), []);
 
   const quickStart = () => {
     const pre: Partial<WizardProfile> = {};
@@ -140,6 +148,19 @@ export function Landing({
                 Describe it yourself
               </motion.button>
             </div>
+            {lastSearch && (
+              <button
+                onClick={() => onResume(lastSearch)}
+                className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold transition-opacity hover:opacity-80"
+                style={{ color: "var(--md-on-surface-variant)" }}
+              >
+                <IconHistory size={15} aria-hidden /> Continue your last search
+                <span style={{ color: "var(--md-on-surface)" }}>
+                  (${lastSearch.budget_max.toLocaleString()}
+                  {lastSearch.body_styles[0] ? ` ${lastSearch.body_styles[0]}` : ""} · ZIP {lastSearch.zip_code})
+                </span>
+              </button>
+            )}
           </motion.div>
 
           {/* hero illustration (decorative) */}

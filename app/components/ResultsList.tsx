@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence } from "framer-motion";
 import { IconArrowsSort } from "@tabler/icons-react";
 import type { NormalizedListing } from "@/lib/types";
@@ -61,6 +61,33 @@ export function ResultsList({
   const [filters, setFilters] = useState<Set<FilterKey>>(new Set());
   const [compare, setCompare] = useState<NormalizedListing[]>([]);
   const [showCompare, setShowCompare] = useState(false);
+
+  // Remember sort + filter choices across searches/sessions (localStorage). Loaded after mount
+  // to avoid a hydration mismatch; saved whenever they change.
+  const [prefsLoaded, setPrefsLoaded] = useState(false);
+  useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect -- one-time prefs load from localStorage on mount */
+    try {
+      const raw = localStorage.getItem("dascar:resultPrefs");
+      if (raw) {
+        const o = JSON.parse(raw) as { sort?: SortKey; filters?: FilterKey[] };
+        if (o.sort && SORTS.some((s) => s.key === o.sort)) setSort(o.sort);
+        if (Array.isArray(o.filters)) setFilters(new Set(o.filters));
+      }
+    } catch {
+      /* storage unavailable — ignore */
+    }
+    setPrefsLoaded(true);
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, []);
+  useEffect(() => {
+    if (!prefsLoaded) return; // don't overwrite saved prefs before we've loaded them
+    try {
+      localStorage.setItem("dascar:resultPrefs", JSON.stringify({ sort, filters: [...filters] }));
+    } catch {
+      /* storage unavailable — ignore */
+    }
+  }, [sort, filters, prefsLoaded]);
 
   const idOf = (l: NormalizedListing) => l.vin ?? l.listing_url;
   const toggleCompare = (l: NormalizedListing) =>

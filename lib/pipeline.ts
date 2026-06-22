@@ -62,7 +62,7 @@ export function briefFromProfile(p: WizardProfile): string {
     `On a 1-5 scale, safety matters ${p.safety}/5 and fun-to-drive matters ${p.fun}/5.`,
     p.drivetrain !== "any" ? `I want ${p.drivetrain.toUpperCase()} drivetrain.` : "",
     p.transmission !== "any" ? `I want a ${p.transmission} transmission.` : "",
-    p.fuel !== "any" ? `Fuel type: ${p.fuel}.` : "",
+    (p.fuels ?? []).length ? `Fuel type(s): ${p.fuels.join(", ")}.` : "",
     p.cylinders ? `${p.cylinders} cylinders.` : "",
     p.keywords.trim() ? `Must mention: ${p.keywords.trim()}.` : "",
     p.body_styles.length ? `Preferred body styles: ${p.body_styles.join(", ")}.` : "",
@@ -84,16 +84,23 @@ function applyProfileOverrides(plan: SearchPlan, p: WizardProfile): void {
     year_min: p.year_min,
     year_max: p.year_max,
     transmission: p.transmission === "any" ? null : p.transmission,
-    fuel_type: p.fuel === "any" ? null : p.fuel,
+    // Single fuel_type lets the source pre-filter (electric/diesel) when exactly one is chosen;
+    // fuel_types drives the multi-aware post-filter. Empty selection = any.
+    fuel_type: (p.fuels ?? []).length === 1 ? (p.fuels[0] as "gas" | "hybrid" | "electric" | "diesel") : null,
+    fuel_types: (p.fuels ?? []).length
+      ? (p.fuels as ("gas" | "hybrid" | "electric" | "diesel")[])
+      : null,
     cylinders: p.cylinders || null,
     keywords: p.keywords.trim() || null,
   });
-  // Drivetrain preference: AWD also accepts 4WD; FWD/RWD are exact. ALWAYS set from the wizard
-  // (the wizard is authoritative) — "any" must CLEAR any drivetrain the LLM inferred on its own,
-  // otherwise an inferred "AWD" silently over-filters when the user asked for no preference.
+  // Drivetrain preference: AWD and 4WD are now distinct (the user asked to separate them).
+  // 4WD also accepts the "4x4" label some feeds use; FWD/RWD/AWD are matched on their own token.
+  // ALWAYS set from the wizard (authoritative) — "any" must CLEAR any drivetrain the LLM inferred,
+  // otherwise an inferred value silently over-filters when the user asked for no preference.
   const driveMap: Record<WizardProfile["drivetrain"], string[]> = {
     any: [],
-    awd: ["AWD", "4WD"],
+    awd: ["AWD"],
+    "4wd": ["4WD", "4x4"],
     fwd: ["FWD"],
     rwd: ["RWD"],
   };

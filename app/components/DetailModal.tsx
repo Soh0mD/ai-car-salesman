@@ -431,6 +431,7 @@ export function DetailModal({
           >
             🔍 Search the web
           </a>
+          <ShareCar listing={l} />
           <p
             className="mt-2 text-center text-xs"
             style={{ color: "var(--md-on-surface-variant)" }}
@@ -618,6 +619,44 @@ function FiveYearCost({
         National-average estimate (fuel, maintenance, insurance &amp; depreciation). Your costs vary.
       </p>
     </details>
+  );
+}
+
+// Share a car via the native share sheet (mobile) or clipboard fallback (desktop).
+function ShareCar({ listing: l }: { listing: NormalizedListing }) {
+  const [copied, setCopied] = useState(false);
+  async function share() {
+    const title = [l.year, l.make, l.model, l.trim].filter(Boolean).join(" ") || "this car";
+    const text = `${title}${l.price != null ? ` — $${l.price.toLocaleString()}` : ""} (found on dascar)`;
+    const url = l.listing_url;
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({ title, text, url });
+        return;
+      } catch {
+        /* user cancelled or unsupported — fall through to clipboard */
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(`${text}\n${url}`);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* clipboard unavailable */
+    }
+  }
+  return (
+    <button
+      onClick={share}
+      className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg py-4 text-sm font-bold uppercase tracking-wide"
+      style={{
+        background: "var(--md-surface-container-highest)",
+        color: "var(--md-on-surface)",
+        border: "1px solid var(--md-outline-variant)",
+      }}
+    >
+      {copied ? "✓ Link copied" : "📤 Share this car"}
+    </button>
   );
 }
 

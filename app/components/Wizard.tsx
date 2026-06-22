@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { IconBulb } from "@tabler/icons-react";
 import type { WizardProfile } from "@/lib/types";
@@ -21,7 +21,7 @@ const DEFAULT_PROFILE: WizardProfile = {
   fun: 3,
   drivetrain: "any",
   transmission: "any",
-  fuel: "any",
+  fuels: [],
   cylinders: 0,
   keywords: "",
   body_styles: [],
@@ -60,15 +60,22 @@ const STEP_TIPS = [
 export function Wizard({
   onComplete,
   initial,
+  initialStep = 0,
+  editing = false,
   onHome,
 }: {
   onComplete: (profile: WizardProfile) => void;
   initial?: Partial<WizardProfile>;
+  initialStep?: number;
+  editing?: boolean; // entered by editing a results chip — offer a direct "Apply changes" exit
   onHome: () => void;
 }) {
   const [profile, setProfile] = useState<WizardProfile>({ ...DEFAULT_PROFILE, ...initial });
-  const [fuelRating, setFuelRating] = useState(3);
-  const [[step, dir], setStep] = useState<[number, number]>([0, 0]);
+  // Seed the fuel-priority rating from the incoming profile so the stars reflect saved answers.
+  const [fuelRating, setFuelRating] = useState(
+    initial?.fuel_priority === "low" ? 2 : initial?.fuel_priority === "high" ? 5 : 3,
+  );
+  const [[step, dir], setStep] = useState<[number, number]>([initialStep, 0]);
 
   const update = (patch: Partial<WizardProfile>) => setProfile((p) => ({ ...p, ...patch }));
 
@@ -89,6 +96,23 @@ export function Wizard({
     setStep([next, delta]);
   };
 
+  // Keyboard: Enter advances to the next step (or finishes) — but not while typing in a field,
+  // where Enter commits the value instead. Re-subscribes on any state that `go` depends on.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Enter") return;
+      const tag = (document.activeElement?.tagName ?? "").toLowerCase();
+      if (tag === "input" || tag === "textarea" || tag === "select") return;
+      if (current.canNext) {
+        e.preventDefault();
+        go(1);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, total, profile, current.canNext]);
+
   const variants = {
     enter: (d: number) => ({ x: d >= 0 ? 70 : -70, opacity: 0 }),
     center: { x: 0, opacity: 1 },
@@ -97,13 +121,25 @@ export function Wizard({
 
   return (
     <div className="mx-auto flex min-h-[80vh] w-full max-w-xl flex-col px-5 py-8">
-      <button
-        onClick={onHome}
-        className="mb-6 flex items-center gap-1.5 self-start text-sm font-bold transition-opacity hover:opacity-80"
-        style={{ color: "var(--md-on-surface-variant)" }}
-      >
-        <span aria-hidden>←</span> Home
-      </button>
+      <div className="mb-6 flex items-center justify-between">
+        <button
+          onClick={onHome}
+          className="flex items-center gap-1.5 text-sm font-bold transition-opacity hover:opacity-80"
+          style={{ color: "var(--md-on-surface-variant)" }}
+        >
+          <span aria-hidden>←</span> Home
+        </button>
+        {editing && (
+          <motion.button
+            onClick={() => onComplete(profile)}
+            whileTap={{ scale: 0.96 }}
+            className="flex items-center gap-1.5 rounded-full px-5 py-2 text-xs font-bold uppercase tracking-[0.12em] shadow-md"
+            style={{ background: "var(--md-cta)", color: "var(--md-on-cta)" }}
+          >
+            Apply changes <span aria-hidden>🔎</span>
+          </motion.button>
+        )}
+      </div>
 
       {/* progress — thin track with a sienna leading-edge "needle" (Stitch) */}
       <div className="mb-12">
@@ -399,7 +435,7 @@ function buildSteps(
     },
     {
       title: "Drivetrain preference?",
-      subtitle: "RWD is the fun one; AWD grips in bad weather.",
+      subtitle: "AWD grips in rain/snow; 4WD is for trucks & off-road.",
       canNext: true,
       body: (
         <ChoiceGrid
@@ -407,7 +443,8 @@ function buildSteps(
           onChange={(v) => update({ drivetrain: v as WizardProfile["drivetrain"] })}
           options={[
             { value: "any", emoji: "🤷", label: "No preference", desc: "Anything" },
-            { value: "awd", emoji: "❄️", label: "AWD / 4WD", desc: "Snow & grip" },
+            { value: "awd", emoji: "❄️", label: "AWD", desc: "All-wheel grip" },
+            { value: "4wd", emoji: "🏔️", label: "4WD", desc: "Trucks & off-road" },
             { value: "fwd", emoji: "🚗", label: "FWD", desc: "Efficient" },
             { value: "rwd", emoji: "🏎️", label: "RWD", desc: "Sporty & fun" },
           ]}
@@ -447,21 +484,25 @@ function buildSteps(
               })
             }
           />
-          <label
-            className="md-choice flex cursor-pointer items-center gap-3"
-            data-selected={p.excluded_body_styles.includes("Minivan")}
-          >
+          <div>
+            <Label>Exclude any body styles? (optional)</Label>
             <input
-              type="checkbox"
-              checked={p.excluded_body_styles.includes("Minivan")}
+              value={p.excluded_body_styles.join(", ")}
               onChange={(e) =>
-                update({ excluded_body_styles: e.target.checked ? ["Minivan"] : [] })
+                update({
+                  excluded_body_styles: e.target.value
+                    .split(",")
+                    .map((s) => s.trim())
+                    .filter(Boolean),
+                })
               }
-              className="h-5 w-5"
-              style={{ accentColor: "var(--md-primary)" }}
+              placeholder="e.g. Minivan, Coupe, Convertible"
+              className="md-field mt-1 w-full text-sm"
             />
-            <span className="text-sm font-semibold">🚫 No minivans, ever</span>
-          </label>
+            <p className="mt-1.5 text-xs" style={{ color: "var(--md-on-surface-variant)" }}>
+              Comma-separated. We&apos;ll drop anything matching these from your results.
+            </p>
+          </div>
         </div>
       ),
     },
@@ -473,17 +514,23 @@ function buildSteps(
         <div className="space-y-6">
           <div>
             <Label>Fuel type</Label>
-            <SingleChips
-              value={p.fuel}
-              onChange={(v) => update({ fuel: v as WizardProfile["fuel"] })}
+            <MultiChips
+              selected={p.fuels}
+              onToggle={(v) =>
+                update({
+                  fuels: p.fuels.includes(v) ? p.fuels.filter((x) => x !== v) : [...p.fuels, v],
+                })
+              }
               options={[
-                { value: "any", label: "Any" },
                 { value: "gas", label: "Gas" },
                 { value: "hybrid", label: "Hybrid" },
                 { value: "electric", label: "Electric" },
                 { value: "diesel", label: "Diesel" },
               ]}
             />
+            <p className="mt-1.5 text-xs" style={{ color: "var(--md-on-surface-variant)" }}>
+              Pick any combination, or leave blank for any.
+            </p>
           </div>
           <div>
             <Label>Cylinders</Label>
@@ -494,7 +541,9 @@ function buildSteps(
                 { value: "0", label: "Any" },
                 { value: "4", label: "4-cyl" },
                 { value: "6", label: "6-cyl" },
-                { value: "8", label: "V8" },
+                { value: "8", label: "8-cyl" },
+                { value: "10", label: "10-cyl" },
+                { value: "12", label: "12-cyl" },
               ]}
             />
           </div>
@@ -800,6 +849,33 @@ function SingleChips({
           whileTap={{ scale: 0.95 }}
           className="md-chip"
           data-selected={o.value === value}
+        >
+          {o.label}
+        </motion.button>
+      ))}
+    </div>
+  );
+}
+
+/** Like SingleChips but multi-select (toggles values in/out of an array). */
+function MultiChips({
+  options,
+  selected,
+  onToggle,
+}: {
+  options: { value: string; label: string }[];
+  selected: string[];
+  onToggle: (v: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2.5">
+      {options.map((o) => (
+        <motion.button
+          key={o.value}
+          onClick={() => onToggle(o.value)}
+          whileTap={{ scale: 0.95 }}
+          className="md-chip"
+          data-selected={selected.includes(o.value)}
         >
           {o.label}
         </motion.button>
