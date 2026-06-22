@@ -15,6 +15,7 @@ import type { ReliabilityFlag, ReliabilitySeverity } from "./types";
 interface Rule {
   make: string; // exact, case-insensitive
   models?: string[]; // case-insensitive substrings of the listing's model; omit = any model
+  excludeModels?: string[]; // case-insensitive substrings that DISQUALIFY (e.g. "Grand Cherokee" vs "Cherokee")
   yearMin: number;
   yearMax: number;
   severity: ReliabilitySeverity;
@@ -105,6 +106,7 @@ const RULES: Rule[] = [
   {
     make: "Jeep",
     models: ["Cherokee", "Renegade", "Compass"],
+    excludeModels: ["Grand Cherokee"], // Grand Cherokee uses the Pentastar V6/HEMI, not the 2.4
     yearMin: 2014,
     yearMax: 2020,
     severity: "caution",
@@ -126,6 +128,163 @@ const RULES: Rule[] = [
     severity: "caution",
     issue: "2.5L (FB25) — excessive oil consumption (piston-ring TSB era)",
   },
+
+  // ── Additional documented offenders ──────────────────────────────────────────────────────
+  // Sourced the same way as the entries above: NHTSA recalls/investigations, class-action
+  // settlements, manufacturer TSBs / warranty extensions, and long-standing, widely-reported
+  // failure patterns. Kept specific to engine/drivetrain + year range to stay defensible.
+  {
+    make: "Subaru",
+    models: ["Outback", "Legacy", "Forester", "Impreza", "Baja"],
+    yearMin: 2000,
+    yearMax: 2009,
+    severity: "caution",
+    issue: "EJ25 (SOHC) — head-gasket leaks are common with age/mileage; budget for the repair",
+  },
+  {
+    make: "Ford",
+    models: ["F-250", "F-350", "F-450", "Excursion"],
+    yearMin: 2003,
+    yearMax: 2007,
+    severity: "avoid",
+    issue: "6.0L Power Stroke diesel — notorious EGR cooler / oil cooler / head-gasket failures; very costly unless already bulletproofed",
+  },
+  {
+    make: "Ford",
+    models: ["F-150", "Expedition", "F-250", "F-350"],
+    yearMin: 2004,
+    yearMax: 2010,
+    severity: "caution",
+    issue: "5.4L 3-valve Triton V8 — spark-plug breakage/blowout and cam-phaser rattle; confirm the fixes were done",
+  },
+  {
+    make: "Lincoln",
+    models: ["Navigator", "Mark LT"],
+    yearMin: 2005,
+    yearMax: 2010,
+    severity: "caution",
+    issue: "5.4L 3-valve Triton V8 — spark-plug breakage/blowout and cam-phaser rattle",
+  },
+  {
+    make: "Ford",
+    models: ["Escape", "Fusion"],
+    yearMin: 2013,
+    yearMax: 2014,
+    severity: "caution",
+    issue: "1.6L EcoBoost — coolant intrusion into the cylinders and engine-fire recall history",
+  },
+  {
+    make: "Chevrolet",
+    models: ["Silverado", "Tahoe", "Suburban", "Avalanche"],
+    yearMin: 2010,
+    yearMax: 2014,
+    severity: "caution",
+    issue: "5.3L V8 (Gen IV, Active Fuel Management) — oil consumption and AFM lifter failure; check for a clean cold start",
+  },
+  {
+    make: "GMC",
+    models: ["Sierra", "Yukon"],
+    yearMin: 2010,
+    yearMax: 2014,
+    severity: "caution",
+    issue: "5.3L V8 (Gen IV, Active Fuel Management) — oil consumption and AFM lifter failure; check for a clean cold start",
+  },
+  {
+    make: "Chevrolet",
+    models: ["Cruze", "Sonic", "Trax"],
+    yearMin: 2011,
+    yearMax: 2016,
+    severity: "caution",
+    issue: "1.4L turbo — coolant leaks and PCV / valve-cover failures; watch for unexplained coolant loss",
+  },
+  {
+    make: "BMW",
+    models: ["135", "335", "535", "740", "1M", "Z4"],
+    yearMin: 2007,
+    yearMax: 2011,
+    severity: "caution",
+    issue: "N54 twin-turbo — high-pressure fuel pump and wastegate failures (HPFP recall / extended-warranty era)",
+  },
+  {
+    make: "MINI",
+    models: ["Cooper"],
+    yearMin: 2007,
+    yearMax: 2010,
+    severity: "caution",
+    issue: "N14 turbo (Cooper S) — timing-chain rattle, carbon buildup, and turbo / water-pump failures",
+  },
+  {
+    make: "Mazda",
+    models: ["CX-7", "Mazdaspeed", "Speed3", "Speed6"],
+    yearMin: 2006,
+    yearMax: 2012,
+    severity: "caution",
+    issue: "2.3L DISI turbo — turbo and timing-chain / VVT wear; CX-7 especially demands diligent oil changes",
+  },
+  {
+    make: "Honda",
+    models: ["Odyssey", "Pilot", "Ridgeline", "Accord"],
+    yearMin: 2008,
+    yearMax: 2013,
+    severity: "caution",
+    issue: "3.5L V6 with VCM — oil consumption from cylinder deactivation plus failure-prone motor mounts",
+  },
+  {
+    make: "Toyota",
+    models: ["Camry", "RAV4", "Highlander", "Scion tC", "Solara", "Matrix"],
+    yearMin: 2007,
+    yearMax: 2011,
+    severity: "caution",
+    issue: "2.4L 2AZ-FE — piston-ring oil consumption (warranty-extension TSB); check the oil level and for burning",
+  },
+  {
+    make: "Mercedes-Benz",
+    models: ["C300", "C350", "E350", "ML350", "CLK350", "SLK350", "R350", "GLK"],
+    yearMin: 2005,
+    yearMax: 2008,
+    severity: "caution",
+    issue: "M272 V6 / M273 V8 — balance-shaft / idler-gear wear on early (pre-facelift) engines",
+  },
+  {
+    make: "Jeep",
+    models: ["Wrangler", "Grand Cherokee"],
+    yearMin: 2011,
+    yearMax: 2013,
+    severity: "caution",
+    issue: "3.6 Pentastar (early build) — left cylinder-head failure causing a cylinder-2 misfire (TSB / extended warranty)",
+  },
+  {
+    make: "Dodge",
+    models: ["Charger", "Challenger", "Durango"],
+    yearMin: 2011,
+    yearMax: 2013,
+    severity: "caution",
+    issue: "3.6 Pentastar (early build) — left cylinder-head failure causing a cylinder-2 misfire (TSB / extended warranty)",
+  },
+  {
+    make: "Chrysler",
+    models: ["300", "Town & Country"],
+    yearMin: 2011,
+    yearMax: 2013,
+    severity: "caution",
+    issue: "3.6 Pentastar (early build) — left cylinder-head failure causing a cylinder-2 misfire (TSB / extended warranty)",
+  },
+  {
+    make: "Chrysler",
+    models: ["Sebring", "200"],
+    yearMin: 2007,
+    yearMax: 2010,
+    severity: "caution",
+    issue: "2.7L V6 — prone to oil sludge and bottom-end failure if oil changes were ever neglected",
+  },
+  {
+    make: "Land Rover",
+    models: ["LR3", "LR4", "Range Rover", "Discovery", "Evoque"],
+    yearMin: 2005,
+    yearMax: 2016,
+    severity: "caution",
+    issue: "Air-suspension, electrical and cooling repairs are common and expensive across this era — budget accordingly",
+  },
 ];
 
 // "avoid" before "caution" so the more serious flag wins when a make has overlapping rules.
@@ -143,6 +302,7 @@ export function checkReliability(
   for (const r of ORDERED) {
     if (r.make.toLowerCase() !== mk) continue;
     if (year < r.yearMin || year > r.yearMax) continue;
+    if (r.excludeModels && r.excludeModels.some((m) => md.includes(m.toLowerCase()))) continue;
     if (r.models && !r.models.some((m) => md.includes(m.toLowerCase()))) continue;
     return { severity: r.severity, issue: r.issue };
   }
