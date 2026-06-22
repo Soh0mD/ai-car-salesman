@@ -13,6 +13,7 @@ const BASE = "https://mc-api.marketcheck.com/v2/search/car/active";
 const FETCH_TIMEOUT_MS = 9000;
 const MAX_MODELS = 4; // cap parallel sub-queries to stay polite to the free tier
 const ROWS_PER_MODEL = 15;
+const MC_MAX_RADIUS = 100; // the subscribed plan rejects radius > 100 mi with HTTP 422
 
 interface MCListing {
   id?: string;
@@ -91,6 +92,63 @@ function mapListing(l: MCListing): NormalizedListing | null {
 // shows up in unrelated dealer copy ("certified technicians").
 const CPO_RE = /\bcpo\b|certified pre[\s-]?owned/i;
 
+const MAX_BODY_SWEEPS = 2; // cap broad body-style queries
+const ROWS_PER_SWEEP = 25; // a sweep covers many makes, so pull more rows
+
+// Map our UI body-style names to Marketcheck's `body_type` facet values.
+const MC_BODY_TYPE: Record<string, string> = {
+  suv: "SUV",
+  sedan: "Sedan",
+  truck: "Pickup",
+  pickup: "Pickup",
+  hatchback: "Hatchback",
+  wagon: "Wagon",
+  coupe: "Coupe",
+  convertible: "Convertible",
+  van: "Van",
+  minivan: "Minivan",
+};
+
+/**
+ * Shared constraint params (budget, mileage, transmission, drivetrain, cylinders, fuel, location)
+ * used by BOTH the per-model queries and the body-style sweep. `make`/`model`/`year_range`/
+ * `body_type` are added by the caller.
+ */
+function baseParams(apiKey: string, plan: SearchPlan, rows: number): URLSearchParams {
+  const { constraints, automotive_targets } = plan;
+  const params = new URLSearchParams({ api_key: apiKey, rows: String(rows), car_type: "used" });
+  // Fuel handling is quirky on Marketcheck: it tags hybrids as "Unleaded" (hybrid-ness lives in
+  // the model name/heading), so fuel_type=Hybrid returns nothing. Electric/Diesel ARE tagged
+  // correctly. So: hybrid -> keyword "Hybrid"; electric/diesel -> fuel_type.
+  const keywordParts: string[] = [];
+  if (constraints.keywords) keywordParts.push(constraints.keywords);
+  if (constraints.fuel_type === "hybrid") keywordParts.push("Hybrid");
+  if (constraints.fuel_type === "electric") params.set("fuel_type", "Electric");
+  if (constraints.fuel_type === "diesel") params.set("fuel_type", "Diesel");
+  if (constraints.budget_max) params.set("price_range", `0-${Math.round(constraints.budget_max)}`);
+  if (constraints.max_mileage) params.set("miles_range", `0-${Math.round(constraints.max_mileage)}`);
+  if (constraints.transmission) {
+    params.set("transmission", constraints.transmission === "manual" ? "Manual" : "Automatic");
+  }
+  // Source-level drivetrain filter: narrow by the primary preferred token (e.g. "AWD" or "4WD").
+  // preferred[0] is the canonical label; any extra entries (e.g. "4x4") are just post-filter aliases.
+  const preferred = automotive_targets.mechanical_filters.preferred_drivetrains;
+  if (preferred.length >= 1) params.set("drivetrain", preferred[0]);
+  if (constraints.cylinders) params.set("cylinders", String(constraints.cylinders));
+  if (keywordParts.length) params.set("keyword", keywordParts.join(" "));
+  // For "nationwide" (sentinel) drop BOTH zip and radius — Marketcheck treats zip with no radius
+  // as exact-zip (returns ~nothing), so a true national search must omit the zip entirely.
+  const nationwide = (constraints.radius_miles ?? 0) >= 5000;
+  if (constraints.zip_code && !nationwide) params.set("zip", constraints.zip_code);
+  // The Marketcheck plan caps radius at 100 mi — a larger value returns HTTP 422 (zero results),
+  // so clamp it. Cars beyond 100 mi still come from the keyless sources, and zip is kept so we
+  // retain the distance figure for everything within range.
+  if (constraints.radius_miles && !nationwide) {
+    params.set("radius", String(Math.min(constraints.radius_miles, MC_MAX_RADIUS)));
+  }
+  return params;
+}
+
 export async function search(plan: SearchPlan): Promise<NormalizedListing[]> {
   const apiKey = process.env.MARKETCHECK_API_KEY;
   if (!apiKey) return []; // gracefully skip when not configured
@@ -101,21 +159,9 @@ export async function search(plan: SearchPlan): Promise<NormalizedListing[]> {
       ? automotive_targets.suggested_models.slice(0, MAX_MODELS)
       : [null];
 
-  const requests = models.map((m) => {
-    const params = new URLSearchParams({
-      api_key: apiKey,
-      rows: String(ROWS_PER_MODEL),
-      car_type: "used",
-    });
-    // Fuel handling is quirky on Marketcheck: it tags hybrids as "Unleaded" (hybrid-ness lives
-    // in the model name/heading), so fuel_type=Hybrid returns nothing. Electric/Diesel ARE tagged
-    // correctly. So: hybrid -> keyword "Hybrid" on the base model; electric/diesel -> fuel_type.
-    const keywordParts: string[] = [];
-    if (constraints.keywords) keywordParts.push(constraints.keywords);
-    if (constraints.fuel_type === "hybrid") keywordParts.push("Hybrid");
-    if (constraints.fuel_type === "electric") params.set("fuel_type", "Electric");
-    if (constraints.fuel_type === "diesel") params.set("fuel_type", "Diesel");
-
+  // Per-model queries: the LLM's curated picks (carry reliability reasoning).
+  const modelRequests = models.map((m) => {
+    const params = baseParams(apiKey, plan, ROWS_PER_MODEL);
     if (m) {
       params.set("make", m.make);
       // Strip fuel suffixes ("Highlander Hybrid" -> "Highlander", "Bolt EV" -> "Bolt") so the
@@ -123,28 +169,27 @@ export async function search(plan: SearchPlan): Promise<NormalizedListing[]> {
       params.set("model", m.model.replace(/\s+(plug-in hybrid|hybrid|ev|electric)$/i, "").trim());
       params.set("year_range", `${m.years.min}-${m.years.max}`);
     }
-    if (constraints.budget_max) params.set("price_range", `0-${Math.round(constraints.budget_max)}`);
-    if (constraints.max_mileage) params.set("miles_range", `0-${Math.round(constraints.max_mileage)}`);
-    if (constraints.transmission) {
-      params.set("transmission", constraints.transmission === "manual" ? "Manual" : "Automatic");
-    }
-    // Source-level drivetrain filter only when there's a single unambiguous preference
-    // (RWD/FWD are rare enough that filtering at the source actually surfaces them).
-    const preferred = automotive_targets.mechanical_filters.preferred_drivetrains;
-    if (preferred.length === 1) params.set("drivetrain", preferred[0]);
-    if (constraints.cylinders) params.set("cylinders", String(constraints.cylinders));
-    if (keywordParts.length) params.set("keyword", keywordParts.join(" "));
-    // For "nationwide" (sentinel 99999) drop BOTH zip and radius — Marketcheck treats zip with no
-    // radius as exact-zip (returns ~nothing), so true national search must omit the zip entirely.
-    const nationwide = (constraints.radius_miles ?? 0) >= 5000;
-    if (constraints.zip_code && !nationwide) params.set("zip", constraints.zip_code);
-    if (constraints.radius_miles && !nationwide) {
-      params.set("radius", String(constraints.radius_miles));
-    }
     return getJson(`${BASE}?${params.toString()}`);
   });
 
-  const results = await Promise.all(requests);
+  // Body-style sweep: query by body_type across ALL makes (what a meta-search like AutoTempest
+  // does). This is what stops a valid SUV/truck the LLM didn't happen to name from being invisible.
+  const yearRange =
+    constraints.year_min || constraints.year_max
+      ? `${constraints.year_min ?? 1990}-${constraints.year_max ?? new Date().getFullYear() + 1}`
+      : null;
+  const sweepRequests = automotive_targets.body_styles
+    .map((bs) => MC_BODY_TYPE[bs.toLowerCase()])
+    .filter((v): v is string => !!v)
+    .slice(0, MAX_BODY_SWEEPS)
+    .map((bodyType) => {
+      const params = baseParams(apiKey, plan, ROWS_PER_SWEEP);
+      params.set("body_type", bodyType);
+      if (yearRange) params.set("year_range", yearRange);
+      return getJson(`${BASE}?${params.toString()}`);
+    });
+
+  const results = await Promise.all([...modelRequests, ...sweepRequests]);
   const out: NormalizedListing[] = [];
   for (const r of results) {
     for (const l of r?.listings ?? []) {
