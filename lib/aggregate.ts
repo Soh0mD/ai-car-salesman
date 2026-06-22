@@ -74,11 +74,14 @@ function fuelMatches(l: NormalizedListing, wanted: string[]): boolean {
   const isHybrid = name.includes("hybrid") || name.includes("plug-in") || f.includes("hybrid");
   const isElectric = f.includes("electric") || name.includes("electric") || /\bev\b/.test(name);
   const isDiesel = f.includes("diesel") || name.includes("diesel") || name.includes("tdi");
+  // Hydrogen fuel-cell cars (Mirai, Clarity FCV, Nexo) aren't gasoline — keep them out of "gas".
+  const isHydrogen =
+    f.includes("hydrogen") || f.includes("fuel cell") || /\b(mirai|nexo)\b/.test(name) || name.includes("fuel cell");
   const matchOne = (want: string): boolean => {
     if (want === "hybrid") return isHybrid;
     if (want === "electric") return isElectric && !isHybrid; // pure EV, not a plug-in hybrid
     if (want === "diesel") return isDiesel;
-    return !isElectric && !isDiesel; // gas (hybrids burn gas, so allow them through)
+    return !isElectric && !isDiesel && !isHydrogen; // gas (hybrids burn gas, so allow them through)
   };
   return wanted.some(matchOne);
 }
@@ -87,6 +90,22 @@ function fuelMatches(l: NormalizedListing, wanted: string[]): boolean {
 function cylindersMatches(c: number | null, want: number | null | undefined): boolean {
   if (!want || c == null) return true;
   return c === want;
+}
+
+/**
+ * True if the listing satisfies a must-have keyword. The user typed it as a hard requirement
+ * (e.g. "AMG", "Nismo", "Z51"), so every whitespace token must appear in the listing's text.
+ * This is the backstop that keeps the broad body-style sweep from flooding a keyword search with
+ * off-brand cars (Marketcheck's source-level keyword filter is loose).
+ */
+function keywordMatches(l: NormalizedListing, kw: string | null | undefined): boolean {
+  if (!kw || !kw.trim()) return true;
+  const hay = `${l.title ?? ""} ${l.trim ?? ""} ${l.model ?? ""}`.toLowerCase();
+  return kw
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean)
+    .every((t) => hay.includes(t));
 }
 
 /**
@@ -174,7 +193,7 @@ export async function searchAndRank(plan: SearchPlan): Promise<AggregateResult> 
   // Dedupe across sources, then drop excluded body styles + out-of-range year/mileage.
   const excluded = plan.automotive_targets.excluded_body_styles;
   const preferredDrive = plan.automotive_targets.mechanical_filters.preferred_drivetrains;
-  const { budget_max, year_min, year_max, max_mileage, transmission, fuel_type, fuel_types, cylinders } =
+  const { budget_max, year_min, year_max, max_mileage, transmission, fuel_type, fuel_types, cylinders, keywords } =
     plan.constraints;
   // Acceptable fuel set: the multi-select takes precedence, else the single value, else "any".
   const wantedFuels = fuel_types?.length ? fuel_types : fuel_type ? [fuel_type] : [];
@@ -199,6 +218,7 @@ export async function searchAndRank(plan: SearchPlan): Promise<AggregateResult> 
     if (!drivetrainMatches(l.drivetrain, preferredDrive)) return false;
     if (!fuelMatches(l, wantedFuels)) return false;
     if (!cylindersMatches(l.cylinders, cylinders)) return false;
+    if (!keywordMatches(l, keywords)) return false;
     return true;
   });
 

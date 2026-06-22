@@ -92,8 +92,8 @@ function mapListing(l: MCListing): NormalizedListing | null {
 // shows up in unrelated dealer copy ("certified technicians").
 const CPO_RE = /\bcpo\b|certified pre[\s-]?owned/i;
 
-const MAX_BODY_SWEEPS = 2; // cap broad body-style queries
-const ROWS_PER_SWEEP = 25; // a sweep covers many makes, so pull more rows
+const MAX_BODY_SWEEPS = 3; // cap broad body-style queries (covers most multi-body selections)
+const ROWS_PER_SWEEP = 50; // a sweep covers many makes; pull plenty so keyword post-filtering has candidates
 
 // Map our UI body-style names to Marketcheck's `body_type` facet values.
 const MC_BODY_TYPE: Record<string, string> = {
@@ -178,6 +178,10 @@ export async function search(plan: SearchPlan): Promise<NormalizedListing[]> {
     constraints.year_min || constraints.year_max
       ? `${constraints.year_min ?? 1990}-${constraints.year_max ?? new Date().getFullYear() + 1}`
       : null;
+  // The sweep runs even with a keyword present: brand/trim terms like "AMG" don't map to a
+  // Marketcheck model (AMG C63 is model "C-Class", trim "C 63 AMG"), so a model-only search misses
+  // them. The body-type sweep surfaces candidates and the keyword post-filter (in aggregate) keeps
+  // only true matches.
   const sweepRequests = automotive_targets.body_styles
     .map((bs) => MC_BODY_TYPE[bs.toLowerCase()])
     .filter((v): v is string => !!v)
