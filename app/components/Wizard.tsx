@@ -19,10 +19,10 @@ const DEFAULT_PROFILE: WizardProfile = {
   fuel_priority: "medium",
   safety: 3,
   fun: 3,
-  drivetrain: "any",
+  drivetrains: [],
   transmission: "any",
   fuels: [],
-  cylinders: 0,
+  cylinders: [],
   keywords: "",
   body_styles: [],
   excluded_body_styles: [],
@@ -435,14 +435,19 @@ function buildSteps(
     },
     {
       title: "Drivetrain preference?",
-      subtitle: "AWD grips in rain/snow; 4WD is for trucks & off-road.",
+      subtitle: "Pick any that work — AWD grips in rain/snow, 4WD is for trucks & off-road. Leave blank for any.",
       canNext: true,
       body: (
-        <ChoiceGrid
-          value={p.drivetrain}
-          onChange={(v) => update({ drivetrain: v as WizardProfile["drivetrain"] })}
+        <MultiChoiceGrid
+          selected={p.drivetrains}
+          onToggle={(v) =>
+            update({
+              drivetrains: p.drivetrains.includes(v)
+                ? p.drivetrains.filter((x) => x !== v)
+                : [...p.drivetrains, v],
+            })
+          }
           options={[
-            { value: "any", emoji: "🤷", label: "No preference", desc: "Anything" },
             { value: "awd", emoji: "❄️", label: "AWD", desc: "All-wheel grip" },
             { value: "4wd", emoji: "🏔️", label: "4WD", desc: "Trucks & off-road" },
             { value: "fwd", emoji: "🚗", label: "FWD", desc: "Efficient" },
@@ -534,11 +539,17 @@ function buildSteps(
           </div>
           <div>
             <Label>Cylinders</Label>
-            <SingleChips
-              value={String(p.cylinders)}
-              onChange={(v) => update({ cylinders: Number(v) })}
+            <MultiChips
+              selected={p.cylinders.map(String)}
+              onToggle={(v) => {
+                const n = Number(v);
+                update({
+                  cylinders: p.cylinders.includes(n)
+                    ? p.cylinders.filter((x) => x !== n)
+                    : [...p.cylinders, n],
+                });
+              }}
               options={[
-                { value: "0", label: "Any" },
                 { value: "4", label: "4-cyl" },
                 { value: "6", label: "6-cyl" },
                 { value: "8", label: "8-cyl" },
@@ -546,6 +557,9 @@ function buildSteps(
                 { value: "12", label: "12-cyl" },
               ]}
             />
+            <p className="mt-1.5 text-xs" style={{ color: "var(--md-on-surface-variant)" }}>
+              Pick any combination, or leave blank for any.
+            </p>
           </div>
           <div>
             <Label>Must-have keyword</Label>
@@ -795,6 +809,62 @@ function ChoiceGrid<T extends string | number>({
   );
 }
 
+/** Multi-select version of ChoiceGrid: toggles values in/out of an array (empty = no preference). */
+function MultiChoiceGrid({
+  options,
+  selected,
+  onToggle,
+}: {
+  options: { value: string; emoji: string; label: string; desc: string }[];
+  selected: string[];
+  onToggle: (v: string) => void;
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-4">
+      {options.map((o) => {
+        const active = selected.includes(o.value);
+        return (
+          <motion.button
+            key={o.value}
+            onClick={() => onToggle(o.value)}
+            whileTap={{ scale: 0.98 }}
+            className="flex flex-col items-center rounded-2xl p-6 text-center transition-all"
+            style={
+              active
+                ? {
+                    background: "var(--md-cta)",
+                    boxShadow:
+                      "inset 0 0 0 2px var(--md-primary), 0 0 20px color-mix(in srgb, var(--md-cta) 30%, transparent)",
+                  }
+                : { background: "color-mix(in srgb, var(--md-primary-container) 55%, transparent)" }
+            }
+          >
+            <span className="mb-3 text-3xl" style={active ? undefined : { filter: "grayscale(1)" }}>
+              {o.emoji}
+            </span>
+            <span
+              className="mb-1 block font-bold"
+              style={{ color: active ? "var(--md-on-cta)" : "var(--md-on-surface)" }}
+            >
+              {o.label}
+            </span>
+            <span
+              className="text-[10px] font-bold uppercase tracking-widest"
+              style={{
+                color: active
+                  ? "color-mix(in srgb, var(--md-on-cta) 80%, transparent)"
+                  : "var(--md-on-surface-variant)",
+              }}
+            >
+              {o.desc}
+            </span>
+          </motion.button>
+        );
+      })}
+    </div>
+  );
+}
+
 function Rating({
   label,
   value,
@@ -831,31 +901,6 @@ function Rating({
   );
 }
 
-function SingleChips({
-  options,
-  value,
-  onChange,
-}: {
-  options: { value: string; label: string }[];
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <div className="flex flex-wrap gap-2.5">
-      {options.map((o) => (
-        <motion.button
-          key={o.value}
-          onClick={() => onChange(o.value)}
-          whileTap={{ scale: 0.95 }}
-          className="md-chip"
-          data-selected={o.value === value}
-        >
-          {o.label}
-        </motion.button>
-      ))}
-    </div>
-  );
-}
 
 /** Like SingleChips but multi-select (toggles values in/out of an array). */
 function MultiChips({

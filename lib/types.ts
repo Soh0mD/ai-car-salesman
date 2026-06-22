@@ -34,6 +34,8 @@ export const constraintsSchema = z.object({
   // Multi-fuel preference (wizard): a listing matching ANY of these passes. Empty/absent = any.
   fuel_types: z.array(z.enum(["gas", "hybrid", "electric", "diesel"])).nullable().optional(),
   cylinders: z.number().nullable().optional(),
+  // Multi-cylinder preference (wizard): a listing matching ANY of these passes. Empty/absent = any.
+  cylinders_list: z.array(z.number()).nullable().optional(),
   keywords: z.string().nullable().optional(),
 });
 
@@ -83,10 +85,10 @@ export interface WizardProfile {
   fuel_priority: "low" | "medium" | "high";
   safety: number; // 1-5
   fun: number; // 1-5
-  drivetrain: "any" | "awd" | "4wd" | "fwd" | "rwd";
+  drivetrains: string[]; // empty = any; values: "awd" | "4wd" | "fwd" | "rwd"
   transmission: "any" | "automatic" | "manual";
   fuels: string[]; // empty = any; values: "gas" | "hybrid" | "electric" | "diesel"
-  cylinders: number; // 0 = any
+  cylinders: number[]; // empty = any; values: 4 | 6 | 8 | 10 | 12
   keywords: string;
   body_styles: string[];
   excluded_body_styles: string[];

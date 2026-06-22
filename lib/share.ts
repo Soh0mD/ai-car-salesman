@@ -28,8 +28,20 @@ function normalizeProfile(o: Record<string, unknown>): WizardProfile {
   const num = (v: unknown, d: number) => (typeof v === "number" && Number.isFinite(v) ? v : d);
   const str = (v: unknown, d: string) => (typeof v === "string" ? v : d);
   const strArr = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
+  const numArr = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is number => typeof x === "number") : []);
   const oneOf = <T extends string>(v: unknown, allowed: readonly T[], d: T): T =>
     typeof v === "string" && (allowed as readonly string[]).includes(v) ? (v as T) : d;
+  // Migrate legacy single-value fields (saved before drivetrain/cylinders became multi-select).
+  const drivetrains = strArr(o.drivetrains).length
+    ? strArr(o.drivetrains)
+    : typeof o.drivetrain === "string" && o.drivetrain !== "any"
+      ? [o.drivetrain]
+      : [];
+  const cylinders = numArr(o.cylinders).length
+    ? numArr(o.cylinders)
+    : typeof o.cylinders === "number" && o.cylinders > 0
+      ? [o.cylinders]
+      : [];
   return {
     budget_max: num(o.budget_max, 20000),
     zip_code: str(o.zip_code, ""),
@@ -42,10 +54,10 @@ function normalizeProfile(o: Record<string, unknown>): WizardProfile {
     fuel_priority: oneOf(o.fuel_priority, ["low", "medium", "high"], "medium"),
     safety: num(o.safety, 3),
     fun: num(o.fun, 3),
-    drivetrain: oneOf(o.drivetrain, ["any", "awd", "4wd", "fwd", "rwd"], "any"),
+    drivetrains: drivetrains.filter((d) => ["awd", "4wd", "fwd", "rwd"].includes(d)),
     transmission: oneOf(o.transmission, ["any", "automatic", "manual"], "any"),
     fuels: strArr(o.fuels),
-    cylinders: num(o.cylinders, 0),
+    cylinders,
     keywords: str(o.keywords, ""),
     body_styles: strArr(o.body_styles),
     excluded_body_styles: strArr(o.excluded_body_styles),

@@ -182,7 +182,7 @@ export function Results({
             onClick={() => refine({ year_min: Math.min(profile.year_max, profile.year_min + 3) })}
           />
           <RefineChip label="🛣️ Lower miles" onClick={() => refine({ max_mileage: Math.max(1000, Math.round(profile.max_mileage / 2)) })} />
-          {profile.drivetrain !== "awd" && <RefineChip label="❄️ Only AWD" onClick={() => refine({ drivetrain: "awd" })} />}
+          {!(profile.drivetrains ?? []).includes("awd") && <RefineChip label="❄️ Only AWD" onClick={() => refine({ drivetrains: ["awd"] })} />}
           {profile.radius_miles < 99999 && <RefineChip label="🌍 Search wider" onClick={() => refine({ radius_miles: 99999 })} />}
           {!profile.prioritize_reliability && (
             <RefineChip label="🛡️ More reliable" onClick={() => refine({ prioritize_reliability: true })} />
@@ -266,14 +266,14 @@ export function Results({
             {profile.max_mileage < 200000 && (
               <RefineChip label="🛣️ Allow more miles" onClick={() => refine({ max_mileage: 200000 })} />
             )}
-            {profile.cylinders > 0 && (
-              <RefineChip label="⚙️ Any cylinder count" onClick={() => refine({ cylinders: 0 })} />
+            {(profile.cylinders ?? []).length > 0 && (
+              <RefineChip label="⚙️ Any cylinder count" onClick={() => refine({ cylinders: [] })} />
             )}
             {(profile.fuels ?? []).length > 0 && (
               <RefineChip label="⛽ Any fuel type" onClick={() => refine({ fuels: [] })} />
             )}
-            {profile.drivetrain !== "any" && (
-              <RefineChip label="🚙 Any drivetrain" onClick={() => refine({ drivetrain: "any" })} />
+            {(profile.drivetrains ?? []).length > 0 && (
+              <RefineChip label="🚙 Any drivetrain" onClick={() => refine({ drivetrains: [] })} />
             )}
             {(profile.excluded_body_styles ?? []).length > 0 && (
               <RefineChip label="🚫 Clear exclusions" onClick={() => refine({ excluded_body_styles: [] })} />
@@ -341,9 +341,11 @@ function ProfileSummary({
     ...(p.seats ? [{ label: `${p.seats}+ seats`, step: STEP.seats, clear: { seats: 0 } }] : []),
     { label: `${p.year_min}–${p.year_max}`, step: STEP.years },
     { label: `<${(p.max_mileage / 1000).toFixed(0)}k mi`, step: STEP.mileage },
-    ...(p.drivetrain !== "any"
-      ? [{ label: p.drivetrain.toUpperCase(), step: STEP.drivetrain, clear: { drivetrain: "any" as const } }]
-      : []),
+    ...(p.drivetrains ?? []).map((d) => ({
+      label: d.toUpperCase(),
+      step: STEP.drivetrain,
+      clear: { drivetrains: p.drivetrains.filter((x) => x !== d) },
+    })),
     ...(p.transmission !== "any"
       ? [{ label: p.transmission, step: STEP.transmission, clear: { transmission: "any" as const } }]
       : []),
@@ -352,7 +354,11 @@ function ProfileSummary({
       step: STEP.specifics,
       clear: { fuels: p.fuels.filter((x) => x !== f) },
     })),
-    ...(p.cylinders ? [{ label: `${p.cylinders}-cyl`, step: STEP.specifics, clear: { cylinders: 0 } }] : []),
+    ...(p.cylinders ?? []).map((c) => ({
+      label: `${c}-cyl`,
+      step: STEP.specifics,
+      clear: { cylinders: p.cylinders.filter((x) => x !== c) },
+    })),
     ...(p.keywords.trim()
       ? [{ label: `"${p.keywords.trim()}"`, step: STEP.specifics, clear: { keywords: "" } }]
       : []),

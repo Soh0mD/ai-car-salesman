@@ -86,10 +86,10 @@ function fuelMatches(l: NormalizedListing, wanted: string[]): boolean {
   return wanted.some(matchOne);
 }
 
-/** True if the listing's cylinder count matches the preference (0/unknown are kept). */
-function cylindersMatches(c: number | null, want: number | null | undefined): boolean {
-  if (!want || c == null) return true;
-  return c === want;
+/** True if the listing's cylinder count matches ANY wanted count (empty/unknown are kept). */
+function cylindersMatches(c: number | null, wanted: number[]): boolean {
+  if (wanted.length === 0 || c == null) return true;
+  return wanted.includes(c);
 }
 
 /**
@@ -110,24 +110,26 @@ function keywordMatches(l: NormalizedListing, kw: string | null | undefined): bo
 
 /**
  * True if the listing's drivetrain satisfies any preferred drivetrain (unknowns are kept).
- * AWD and 4WD are treated as DISTINCT (they are mechanically different): an AWD preference does
- * not match a 4WD listing and vice-versa. Spelled-out feed labels ("All-Wheel", "Four Wheel",
- * "4x4") are normalized so they still match the right bucket.
+ *
+ * Data reality: the feeds DON'T cleanly separate AWD from 4WD — Marketcheck tags virtually every
+ * all-wheel SUV/crossover as "4WD" (there is no "AWD" tag in much of the inventory). So strict
+ * separation makes an AWD search return nothing. We compromise: the bare "4WD"/"AWD"/"all-wheel"
+ * tags are treated as interchangeable (they satisfy either an AWD or a 4WD preference), while the
+ * explicit off-road "4x4"/"four-wheel" string is 4WD-only and never matches an AWD preference.
  */
 function drivetrainMatches(d: string | null, preferred: string[]): boolean {
   if (preferred.length === 0 || !d) return true;
   const dd = d.toLowerCase();
-  const is4wd = dd.includes("4wd") || dd.includes("4x4") || dd.includes("four");
-  // "all-wheel" but guard against "four wheel" also containing "wheel": 4wd is checked first.
-  const isAwd = !is4wd && (dd.includes("awd") || dd.includes("all"));
+  const isReal4x4 = dd.includes("4x4") || dd.includes("four"); // explicit off-road 4WD
+  const isAllWheelish = dd.includes("4wd") || dd.includes("awd") || dd.includes("all"); // ambiguous AWD/4WD
   const isFwd = dd.includes("fwd") || dd.includes("front");
   const isRwd = dd.includes("rwd") || dd.includes("rear");
   return preferred.some((p) => {
     const pp = p.toLowerCase();
     if (pp.includes("rwd") || pp.includes("rear")) return isRwd;
     if (pp.includes("fwd") || pp.includes("front")) return isFwd;
-    if (pp.includes("4wd") || pp.includes("4x4") || pp.includes("four")) return is4wd;
-    if (pp.includes("awd") || pp.includes("all")) return isAwd;
+    if (pp.includes("4wd") || pp.includes("4x4") || pp.includes("four")) return isAllWheelish || isReal4x4;
+    if (pp.includes("awd") || pp.includes("all")) return isAllWheelish; // "4x4" stays 4WD-only
     return dd.includes(pp);
   });
 }
@@ -202,10 +204,12 @@ export async function searchAndRank(plan: SearchPlan): Promise<AggregateResult> 
   // Dedupe across sources, then drop excluded body styles + out-of-range year/mileage.
   const excluded = plan.automotive_targets.excluded_body_styles;
   const preferredDrive = plan.automotive_targets.mechanical_filters.preferred_drivetrains;
-  const { budget_max, year_min, year_max, max_mileage, transmission, fuel_type, fuel_types, cylinders, keywords } =
+  const { budget_max, year_min, year_max, max_mileage, transmission, fuel_type, fuel_types, cylinders, cylinders_list, keywords } =
     plan.constraints;
   // Acceptable fuel set: the multi-select takes precedence, else the single value, else "any".
   const wantedFuels = fuel_types?.length ? fuel_types : fuel_type ? [fuel_type] : [];
+  // Acceptable cylinder counts: multi-select takes precedence, else the single value, else "any".
+  const wantedCylinders = cylinders_list?.length ? cylinders_list : cylinders ? [cylinders] : [];
   let listings = dedupe(merged);
   // Sanitize implausible odometers: some feeds report fuel RANGE (e.g. 426 mi) in the mileage
   // field. A used car 4+ model years old can't realistically have under 1,000 miles, so treat
@@ -226,7 +230,7 @@ export async function searchAndRank(plan: SearchPlan): Promise<AggregateResult> 
     if (!transmissionMatches(l.transmission, transmission)) return false;
     if (!drivetrainMatches(l.drivetrain, preferredDrive)) return false;
     if (!fuelMatches(l, wantedFuels)) return false;
-    if (!cylindersMatches(l.cylinders, cylinders)) return false;
+    if (!cylindersMatches(l.cylinders, wantedCylinders)) return false;
     if (!keywordMatches(l, keywords)) return false;
     return true;
   });

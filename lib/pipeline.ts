@@ -60,10 +60,12 @@ export function briefFromProfile(p: WizardProfile): string {
     `I'd consider model years ${p.year_min}-${p.year_max}, up to ${p.max_mileage.toLocaleString()} miles.`,
     `Fuel efficiency priority is ${p.fuel_priority}.`,
     `On a 1-5 scale, safety matters ${p.safety}/5 and fun-to-drive matters ${p.fun}/5.`,
-    p.drivetrain !== "any" ? `I want ${p.drivetrain.toUpperCase()} drivetrain.` : "",
+    (p.drivetrains ?? []).length
+      ? `Drivetrain: ${p.drivetrains.map((d) => d.toUpperCase()).join(" or ")}.`
+      : "",
     p.transmission !== "any" ? `I want a ${p.transmission} transmission.` : "",
     (p.fuels ?? []).length ? `Fuel type(s): ${p.fuels.join(", ")}.` : "",
-    p.cylinders ? `${p.cylinders} cylinders.` : "",
+    (p.cylinders ?? []).length ? `${p.cylinders.join(" or ")} cylinders.` : "",
     p.keywords.trim() ? `Must mention: ${p.keywords.trim()}.` : "",
     p.body_styles.length ? `Preferred body styles: ${p.body_styles.join(", ")}.` : "",
     p.excluded_body_styles.length ? `Do not include: ${p.excluded_body_styles.join(", ")}.` : "",
@@ -93,21 +95,20 @@ function applyProfileOverrides(plan: SearchPlan, p: WizardProfile): void {
     fuel_types: (p.fuels ?? []).length
       ? (p.fuels as ("gas" | "hybrid" | "electric" | "diesel")[])
       : null,
-    cylinders: p.cylinders || null,
+    // Single cylinders lets the source pre-filter when exactly one is chosen; cylinders_list
+    // drives the multi-aware post-filter. Empty selection = any.
+    cylinders: (p.cylinders ?? []).length === 1 ? p.cylinders[0] : null,
+    cylinders_list: (p.cylinders ?? []).length ? p.cylinders : null,
     keywords: p.keywords.trim() || null,
   });
-  // Drivetrain preference: AWD and 4WD are now distinct (the user asked to separate them).
-  // 4WD also accepts the "4x4" label some feeds use; FWD/RWD/AWD are matched on their own token.
-  // ALWAYS set from the wizard (authoritative) — "any" must CLEAR any drivetrain the LLM inferred,
-  // otherwise an inferred value silently over-filters when the user asked for no preference.
-  const driveMap: Record<WizardProfile["drivetrain"], string[]> = {
-    any: [],
-    awd: ["AWD"],
-    "4wd": ["4WD", "4x4"],
-    fwd: ["FWD"],
-    rwd: ["RWD"],
-  };
-  plan.automotive_targets.mechanical_filters.preferred_drivetrains = driveMap[p.drivetrain];
+  // Drivetrain preference (multi): map each selected option to its canonical Marketcheck token.
+  // ALWAYS set from the wizard (authoritative) — an empty array CLEARS any drivetrain the LLM
+  // inferred, otherwise an inferred value silently over-filters when the user wants no preference.
+  // 4WD vs AWD stays distinct; the listing-side matcher (drivetrainMatches) handles "4x4" aliases.
+  const driveToken: Record<string, string> = { awd: "AWD", "4wd": "4WD", fwd: "FWD", rwd: "RWD" };
+  plan.automotive_targets.mechanical_filters.preferred_drivetrains = (p.drivetrains ?? [])
+    .map((d) => driveToken[d])
+    .filter(Boolean);
   if (p.prioritize_reliability) {
     plan.automotive_targets.mechanical_filters.reliability_tier = "highest";
   }

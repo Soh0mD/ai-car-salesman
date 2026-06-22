@@ -115,7 +115,7 @@ const MC_BODY_TYPE: Record<string, string> = {
  * `body_type` are added by the caller.
  */
 function baseParams(apiKey: string, plan: SearchPlan, rows: number): URLSearchParams {
-  const { constraints, automotive_targets } = plan;
+  const { constraints } = plan;
   const params = new URLSearchParams({ api_key: apiKey, rows: String(rows), car_type: "used" });
   // Fuel handling is quirky on Marketcheck: it tags hybrids as "Unleaded" (hybrid-ness lives in
   // the model name/heading), so fuel_type=Hybrid returns nothing. Electric/Diesel ARE tagged
@@ -130,10 +130,9 @@ function baseParams(apiKey: string, plan: SearchPlan, rows: number): URLSearchPa
   if (constraints.transmission) {
     params.set("transmission", constraints.transmission === "manual" ? "Manual" : "Automatic");
   }
-  // Source-level drivetrain filter: narrow by the primary preferred token (e.g. "AWD" or "4WD").
-  // preferred[0] is the canonical label; any extra entries (e.g. "4x4") are just post-filter aliases.
-  const preferred = automotive_targets.mechanical_filters.preferred_drivetrains;
-  if (preferred.length >= 1) params.set("drivetrain", preferred[0]);
+  // NOTE: we do NOT send a `drivetrain` filter to Marketcheck — its param is broken (drivetrain=AWD
+  // returns zero even nationwide, and it tags many AWD crossovers as "4WD" anyway). Drivetrain is
+  // enforced reliably by the aggregate post-filter against each listing's decoded drivetrain field.
   if (constraints.cylinders) params.set("cylinders", String(constraints.cylinders));
   if (keywordParts.length) params.set("keyword", keywordParts.join(" "));
   // For "nationwide" (sentinel) drop BOTH zip and radius — Marketcheck treats zip with no radius
