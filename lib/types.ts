@@ -90,6 +90,8 @@ export interface WizardProfile {
   keywords: string;
   body_styles: string[];
   excluded_body_styles: string[];
+  /** When true, steer the search hard toward reliable models (set by the "More reliable" refine). */
+  prioritize_reliability?: boolean;
 }
 
 export type ListingSource = "marketcheck" | "ebay" | "autodev";

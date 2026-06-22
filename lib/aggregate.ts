@@ -133,16 +133,25 @@ function drivetrainMatches(d: string | null, preferred: string[]): boolean {
 }
 
 /**
- * Composite 0..100 value score: cheaper-than-budget, closer, fewer recalls, and a bump for
- * reliability-tier intent. Listings without enough data still get a reasonable baseline.
+ * Composite 0..100 value score: budget-FIT (not cheapness), closer, fewer recalls, and a bump
+ * for reliability-tier intent. Listings without enough data still get a reasonable baseline.
  */
 function scoreListing(l: NormalizedListing, plan: SearchPlan): number {
   let score = 50;
   const budget = plan.constraints.budget_max ?? undefined;
 
   if (budget && l.price) {
-    const ratio = l.price / budget; // <1 is under budget
-    score += Math.max(-25, Math.min(25, (1 - ratio) * 50));
+    const ratio = l.price / budget;
+    if (ratio > 1) {
+      // Over budget (the hard filter usually removes these; penalize any that slip through).
+      score -= Math.min(25, (ratio - 1) * 60);
+    } else {
+      // Reward USING the budget, not minimizing price — a car near the budget is usually newer/
+      // better-equipped, which is what "best match" should mean. Full credit at ~85%+ of budget,
+      // tapering for very cheap cars. Genuine bargains are still surfaced by the separate `deal`
+      // signal and the "Best deal" sort, so Match doesn't need to chase the cheapest car.
+      score += 18 * Math.min(1, ratio / 0.85);
+    }
   }
   if (l.distance_miles != null) {
     score += Math.max(-15, 15 - l.distance_miles / 20); // closer = better
@@ -225,6 +234,13 @@ export async function searchAndRank(plan: SearchPlan): Promise<AggregateResult> 
   // Deterministic curated reliability flags (instant, in-memory — no network).
   for (const l of listings) {
     l.reliability_flag = checkReliability(l.make, l.model, l.year);
+  }
+
+  // When the user asked for the highest reliability tier (e.g. via the "More reliable" refine),
+  // hard-drop the catastrophic "avoid" powertrains entirely — not just rank them down — so the
+  // re-search genuinely shows different, reliable cars. "caution" flags stay (ranked low).
+  if (plan.automotive_targets.mechanical_filters.reliability_tier === "highest") {
+    listings = listings.filter((l) => l.reliability_flag?.severity !== "avoid");
   }
 
   // Score (curated flags already factored in) and trim to the set we'll return + enrich.

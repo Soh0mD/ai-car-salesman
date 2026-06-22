@@ -49,6 +49,7 @@ function normalizeProfile(o: Record<string, unknown>): WizardProfile {
     keywords: str(o.keywords, ""),
     body_styles: strArr(o.body_styles),
     excluded_body_styles: strArr(o.excluded_body_styles),
+    prioritize_reliability: o.prioritize_reliability === true,
   };
 }
 

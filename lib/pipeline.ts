@@ -67,6 +67,9 @@ export function briefFromProfile(p: WizardProfile): string {
     p.keywords.trim() ? `Must mention: ${p.keywords.trim()}.` : "",
     p.body_styles.length ? `Preferred body styles: ${p.body_styles.join(", ")}.` : "",
     p.excluded_body_styles.length ? `Do not include: ${p.excluded_body_styles.join(", ")}.` : "",
+    p.prioritize_reliability
+      ? "RELIABILITY IS THE TOP PRIORITY: only suggest models with excellent long-term reliability, and strictly avoid any model/generation/engine with a known major reliability problem — even if it otherwise fits."
+      : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -105,6 +108,9 @@ function applyProfileOverrides(plan: SearchPlan, p: WizardProfile): void {
     rwd: ["RWD"],
   };
   plan.automotive_targets.mechanical_filters.preferred_drivetrains = driveMap[p.drivetrain];
+  if (p.prioritize_reliability) {
+    plan.automotive_targets.mechanical_filters.reliability_tier = "highest";
+  }
   if (p.body_styles.length) plan.automotive_targets.body_styles = p.body_styles;
   if (p.excluded_body_styles.length) {
     plan.automotive_targets.excluded_body_styles = [

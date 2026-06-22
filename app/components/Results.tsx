@@ -90,6 +90,11 @@ export function Results({
 
   const typing = shown.length < reply.replace(/[*_`]+/g, "").length || !done;
   const searching = reply.length > 0 && listings.length === 0 && !error && !done;
+  // Reliability nudge: most matches carry a curated known-issue flag (phase-A, instant) and the
+  // user hasn't already asked to prioritize reliability.
+  const flaggedCount = listings.filter((l) => l.reliability_flag).length;
+  const reliabilityDominated =
+    done && listings.length >= 4 && flaggedCount / listings.length >= 0.4 && !profile.prioritize_reliability;
 
   return (
     <motion.div
@@ -179,7 +184,31 @@ export function Results({
           <RefineChip label="🛣️ Lower miles" onClick={() => refine({ max_mileage: Math.max(1000, Math.round(profile.max_mileage / 2)) })} />
           {profile.drivetrain !== "awd" && <RefineChip label="❄️ Only AWD" onClick={() => refine({ drivetrain: "awd" })} />}
           {profile.radius_miles < 99999 && <RefineChip label="🌍 Search wider" onClick={() => refine({ radius_miles: 99999 })} />}
+          {!profile.prioritize_reliability && (
+            <RefineChip label="🛡️ More reliable" onClick={() => refine({ prioritize_reliability: true })} />
+          )}
           <SaveSearchButton profile={profile} />
+        </div>
+      )}
+
+      {/* Reliability nudge: when most matches carry a known-issue flag, offer to re-search for
+          genuinely more reliable inventory (rather than just hiding cars). */}
+      {reliabilityDominated && (
+        <div
+          className="mt-4 flex flex-col gap-3 rounded-2xl border p-4 sm:flex-row sm:items-center sm:justify-between"
+          style={{ borderColor: "color-mix(in srgb, var(--md-tertiary) 35%, transparent)", background: "color-mix(in srgb, var(--md-tertiary) 10%, transparent)" }}
+        >
+          <span className="text-sm" style={{ color: "var(--md-on-surface)" }}>
+            ⚠️ Most of these have documented reliability problems. Want me to find more reliable options
+            in your budget instead?
+          </span>
+          <button
+            onClick={() => refine({ prioritize_reliability: true })}
+            className="shrink-0 rounded-full px-5 py-2 text-xs font-bold uppercase tracking-wide shadow-md"
+            style={{ background: "var(--md-cta)", color: "var(--md-on-cta)" }}
+          >
+            🛡️ Show more reliable picks
+          </button>
         </div>
       )}
 
