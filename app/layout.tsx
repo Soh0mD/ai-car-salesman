@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Montserrat, Quicksand } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 // "Joyride" type pairing: Montserrat for confident headlines, Quicksand for friendly body/UI.
@@ -39,6 +40,10 @@ export const metadata: Metadata = {
     title: TITLE,
     description: DESCRIPTION,
   },
+  // Google Search Console (URL-prefix property) verification meta tag.
+  verification: {
+    google: "hL1PxPCjx-gwz2VtUVkxMlerta9YE0iW_yXfc-uTYW8",
+  },
 };
 
 export const viewport: Viewport = {
@@ -55,7 +60,10 @@ export default function RootLayout({
       lang="en"
       className={`${montserrat.variable} ${quicksand.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        <Analytics />
+      </body>
     </html>
   );
 }
