@@ -104,6 +104,12 @@ function mapItem(item: EbayItem, hint: SuggestedModel | null): NormalizedListing
   };
 }
 
+/** Cheap availability probe for the health banner (a working OAuth token = eBay is usable). */
+export async function ebayStatus(): Promise<"ok" | "down" | "unconfigured"> {
+  if (!process.env.EBAY_CLIENT_ID || !process.env.EBAY_CLIENT_SECRET) return "unconfigured";
+  return (await getAppToken()) ? "ok" : "down";
+}
+
 export async function search(plan: SearchPlan): Promise<NormalizedListing[]> {
   const appToken = await getAppToken();
   if (!appToken) return []; // not configured or auth failed -> skip gracefully

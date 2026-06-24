@@ -2,7 +2,8 @@ import type { NormalizedListing, SearchPlan } from "../types";
 
 /**
  * Marketcheck — the dealer-inventory backbone (aggregates the big dealer sites).
- * Free tier: instant key, ~50K-100K queries/mo. Docs: https://docs.marketcheck.com
+ * Free/Starter tier is only ~500 queries/MONTH (quota headers confirm), and each user search can
+ * fan out to several calls — so cache aggressively and keep the fan-out small. Docs: https://docs.marketcheck.com
  *
  * Field mappings follow the v2 /search/car/active response shape. If a future API
  * revision renames fields, this mapper degrades gracefully (optional chaining + nulls)
@@ -201,4 +202,27 @@ export async function search(plan: SearchPlan): Promise<NormalizedListing[]> {
     }
   }
   return out;
+}
+
+/**
+ * Cheap availability probe for the health banner. A `429` (quota exhausted) does NOT consume a
+ * query, so polling this while we're out of quota is free; one tiny `rows=1` call confirms recovery.
+ */
+export async function marketcheckStatus(): Promise<"ok" | "quota" | "down" | "unconfigured"> {
+  const apiKey = process.env.MARKETCHECK_API_KEY;
+  if (!apiKey) return "unconfigured";
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 6000);
+  try {
+    const params = new URLSearchParams({ api_key: apiKey, car_type: "used", rows: "1" });
+    const res = await fetch(`${BASE}?${params.toString()}`, { signal: ctrl.signal, cache: "no-store" });
+    if (res.status === 429) return "quota";
+    if (!res.ok) return "down";
+    const d = (await res.json()) as { listings?: unknown[] };
+    return (d.listings?.length ?? 0) > 0 ? "ok" : "down";
+  } catch {
+    return "down";
+  } finally {
+    clearTimeout(t);
+  }
 }

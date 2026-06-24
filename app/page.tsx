@@ -8,6 +8,7 @@ import { Landing } from "./components/Landing";
 import { Wizard } from "./components/Wizard";
 import { Results } from "./components/Results";
 import { Chat } from "./components/Chat";
+import { MaintenanceBanner } from "./components/MaintenanceBanner";
 
 type Stage = "landing" | "wizard" | "results" | "chat";
 
@@ -39,6 +40,8 @@ export default function Home() {
 
   return (
     <div className="relative min-h-dvh overflow-hidden" style={{ background: "var(--md-surface)" }}>
+      {/* Auto-hiding notice when no live inventory source is available (e.g. quota exhausted). */}
+      <MaintenanceBanner />
       {/* expressive surface blobs (landing brings its own centered glow) */}
       {stage !== "landing" && (
         <>
