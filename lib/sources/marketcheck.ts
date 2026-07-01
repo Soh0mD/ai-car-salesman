@@ -12,9 +12,20 @@ import type { NormalizedListing, SearchPlan } from "../types";
 
 const BASE = "https://mc-api.marketcheck.com/v2/search/car/active";
 const FETCH_TIMEOUT_MS = 9000;
-const MAX_MODELS = 4; // cap parallel sub-queries to stay polite to the free tier
+const MAX_MODELS = 3; // cap parallel sub-queries — every call counts against the tiny monthly quota
 const ROWS_PER_MODEL = 15;
 const MC_MAX_RADIUS = 100; // the subscribed plan rejects radius > 100 mi with HTTP 422
+
+// Quota budgeter: the API reports `quota-remaining` on every response, so we track it and shrink
+// the per-search fan-out as the month runs dry — a degraded search beats an empty site.
+const QUOTA_LOW = 150; // below this: 2 model queries + 1 sweep per search
+const QUOTA_CRITICAL = 30; // below this: 1 model query, no sweep (save the last calls for cache misses)
+let quotaRemaining: number | null = null; // taught by response headers; null until the first call
+
+/** Last-seen Marketcheck monthly quota remaining (null before any call this instance). */
+export function marketcheckQuotaRemaining(): number | null {
+  return quotaRemaining;
+}
 
 interface MCListing {
   id?: string;
@@ -44,6 +55,10 @@ async function getJson(url: string): Promise<{ listings?: MCListing[] } | null> 
   const t = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
   try {
     const res = await fetch(url, { signal: ctrl.signal, cache: "no-store" });
+    // Learn the monthly quota from the response headers (present on both 200s and 429s).
+    const remaining = parseInt(res.headers.get("quota-remaining") ?? "", 10);
+    if (Number.isFinite(remaining)) quotaRemaining = remaining;
+    else if (res.status === 429) quotaRemaining = 0;
     if (!res.ok) return null;
     return (await res.json()) as { listings?: MCListing[] };
   } catch {
@@ -93,8 +108,8 @@ function mapListing(l: MCListing): NormalizedListing | null {
 // shows up in unrelated dealer copy ("certified technicians").
 const CPO_RE = /\bcpo\b|certified pre[\s-]?owned/i;
 
-const MAX_BODY_SWEEPS = 3; // cap broad body-style queries (covers most multi-body selections)
-const ROWS_PER_SWEEP = 50; // a sweep covers many makes; pull plenty so keyword post-filtering has candidates
+const MAX_BODY_SWEEPS = 2; // cap broad body-style queries — each is a whole quota unit
+const ROWS_PER_SWEEP = 50; // rows are free (quota is per-CALL); pull plenty per sweep for post-filtering
 
 // Map our UI body-style names to Marketcheck's `body_type` facet values.
 const MC_BODY_TYPE: Record<string, string> = {
@@ -153,10 +168,24 @@ export async function search(plan: SearchPlan): Promise<NormalizedListing[]> {
   const apiKey = process.env.MARKETCHECK_API_KEY;
   if (!apiKey) return []; // gracefully skip when not configured
 
+  // Tier the fan-out down as the monthly quota runs low (learned from response headers).
+  const maxModels =
+    quotaRemaining != null && quotaRemaining < QUOTA_CRITICAL
+      ? 1
+      : quotaRemaining != null && quotaRemaining < QUOTA_LOW
+        ? 2
+        : MAX_MODELS;
+  const maxSweeps =
+    quotaRemaining != null && quotaRemaining < QUOTA_CRITICAL
+      ? 0
+      : quotaRemaining != null && quotaRemaining < QUOTA_LOW
+        ? 1
+        : MAX_BODY_SWEEPS;
+
   const { constraints, automotive_targets } = plan;
   const models =
     automotive_targets.suggested_models.length > 0
-      ? automotive_targets.suggested_models.slice(0, MAX_MODELS)
+      ? automotive_targets.suggested_models.slice(0, maxModels)
       : [null];
 
   // Per-model queries: the LLM's curated picks (carry reliability reasoning).
@@ -185,7 +214,7 @@ export async function search(plan: SearchPlan): Promise<NormalizedListing[]> {
   const sweepRequests = automotive_targets.body_styles
     .map((bs) => MC_BODY_TYPE[bs.toLowerCase()])
     .filter((v): v is string => !!v)
-    .slice(0, MAX_BODY_SWEEPS)
+    .slice(0, maxSweeps)
     .map((bodyType) => {
       const params = baseParams(apiKey, plan, ROWS_PER_SWEEP);
       params.set("body_type", bodyType);
@@ -216,7 +245,12 @@ export async function marketcheckStatus(): Promise<"ok" | "quota" | "down" | "un
   try {
     const params = new URLSearchParams({ api_key: apiKey, car_type: "used", rows: "1" });
     const res = await fetch(`${BASE}?${params.toString()}`, { signal: ctrl.signal, cache: "no-store" });
-    if (res.status === 429) return "quota";
+    const remaining = parseInt(res.headers.get("quota-remaining") ?? "", 10);
+    if (Number.isFinite(remaining)) quotaRemaining = remaining;
+    if (res.status === 429) {
+      quotaRemaining = 0;
+      return "quota";
+    }
     if (!res.ok) return "down";
     const d = (await res.json()) as { listings?: unknown[] };
     return (d.listings?.length ?? 0) > 0 ? "ok" : "down";

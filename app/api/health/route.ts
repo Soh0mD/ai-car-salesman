@@ -1,4 +1,4 @@
-import { marketcheckStatus } from "@/lib/sources/marketcheck";
+import { marketcheckStatus, marketcheckQuotaRemaining } from "@/lib/sources/marketcheck";
 import { ebayStatus } from "@/lib/sources/ebay";
 
 export const runtime = "nodejs";
@@ -17,7 +17,7 @@ const TTL_DOWN = 5 * 60 * 1000; // 5min
 export async function GET() {
   const ttl = cache?.ok ? TTL_UP : TTL_DOWN;
   if (cache && Date.now() - cache.at < ttl) {
-    return Response.json({ ok: cache.ok, reason: cache.reason });
+    return Response.json({ ok: cache.ok, reason: cache.reason, quota: marketcheckQuotaRemaining() });
   }
 
   const [mc, eb] = await Promise.all([marketcheckStatus(), ebayStatus()]);
@@ -30,5 +30,6 @@ export async function GET() {
         : "Live inventory is temporarily unavailable — please check back shortly.";
   }
   cache = { ok, reason, at: Date.now() };
-  return Response.json({ ok, reason });
+  // `quota` = last-seen Marketcheck monthly quota remaining (ops visibility; null on cold start).
+  return Response.json({ ok, reason, quota: marketcheckQuotaRemaining() });
 }
