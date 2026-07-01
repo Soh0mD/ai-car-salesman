@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   IconArrowRight,
   IconCar,
+  IconChartBar,
   IconCoin,
   IconCompass,
+  IconFingerprint,
   IconHistory,
   IconMessageChatbot,
   IconRadar2,
@@ -39,6 +42,24 @@ const PERKS = [
     tone: "var(--md-primary)",
     title: "It tells you why",
     body: "Real, master-mechanic buying advice that steers you away from money-pit engines and toward cars that actually last.",
+  },
+  {
+    icon: IconCoin,
+    tone: "var(--md-tertiary)",
+    title: "Negotiation, done for you",
+    body: "A fair-offer range and a ready-to-send message to the seller — written for the exact car you're looking at.",
+  },
+  {
+    icon: IconFingerprint,
+    tone: "var(--md-primary)",
+    title: "VIN fraud check",
+    body: "Every VIN gets decoded and cross-checked against the listing, with one click to the free government title history.",
+  },
+  {
+    icon: IconChartBar,
+    tone: "var(--md-tertiary)",
+    title: "True cost, not sticker price",
+    body: "Fuel, maintenance, insurance and depreciation over five years — what the car really costs before you commit.",
   },
 ];
 
@@ -276,10 +297,17 @@ export function Landing({
 
       {/* footer */}
       <footer className="w-full px-6 py-6" style={{ borderTop: "1px solid var(--md-outline-variant)" }}>
-        <div className="mx-auto flex max-w-6xl justify-center">
+        <div className="mx-auto flex max-w-6xl items-center justify-center gap-6">
           <span className="md-title font-extrabold" style={{ color: "var(--md-primary)" }}>
             dascar
           </span>
+          <Link
+            href="/reliability"
+            className="text-sm font-semibold underline-offset-2 hover:underline"
+            style={{ color: "var(--md-on-surface-variant)" }}
+          >
+            Reliability guides
+          </Link>
         </div>
       </footer>
     </div>

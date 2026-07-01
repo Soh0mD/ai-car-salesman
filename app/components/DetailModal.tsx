@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
+import { track } from "@vercel/analytics";
 import type { AdviceResult, CarIntel, NormalizedListing } from "@/lib/types";
 import { recordView } from "@/lib/client-store";
 import { estimateOwnershipCost } from "@/lib/ownership-cost";
@@ -77,6 +78,7 @@ export function DetailModal({
   // Log this car as recently viewed (Wave 4 stickiness — localStorage, no backend).
   useEffect(() => {
     recordView(l);
+    track("listing_opened", { source: l.source }); // funnel: user engaged with a specific car
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -409,6 +411,7 @@ export function DetailModal({
             href={l.listing_url}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() => track("outbound_click", { source: l.source })}
             className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg py-4 text-sm font-bold uppercase tracking-wide shadow-lg"
             style={{ background: "var(--md-cta)", color: "var(--md-on-cta)" }}
           >
@@ -668,6 +671,7 @@ function BuyingTips({ listing: l }: { listing: NormalizedListing }) {
 
   async function load() {
     setState("loading");
+    track("buying_tips"); // funnel: deep engagement — user asked for AI negotiation help
     try {
       const res = await fetch("/api/advise", {
         method: "POST",

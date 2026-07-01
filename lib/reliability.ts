@@ -290,6 +290,39 @@ const RULES: Rule[] = [
 // "avoid" before "caution" so the more serious flag wins when a make has overlapping rules.
 const ORDERED = [...RULES].sort((a, b) => (a.severity === b.severity ? 0 : a.severity === "avoid" ? -1 : 1));
 
+// ---- SEO reliability guides (app/reliability) ----------------------------------------------
+// Each curated rule doubles as a static, indexable buyer's guide — unique editorial content
+// built entirely from local data (zero inventory-API quota).
+
+export interface ReliabilityGuide {
+  slug: string;
+  make: string;
+  models: string[]; // empty = applies across the make's lineup for these years
+  yearMin: number;
+  yearMax: number;
+  severity: ReliabilitySeverity;
+  issue: string;
+}
+
+const kebab = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+
+/** All curated rules as guide entries with stable, unique slugs (first model anchors the slug). */
+export function getReliabilityGuides(): ReliabilityGuide[] {
+  return RULES.map((r) => ({
+    slug: `${kebab(r.make)}-${kebab(r.models?.[0] ?? "all-models")}-${r.yearMin}-${r.yearMax}`,
+    make: r.make,
+    models: r.models ?? [],
+    yearMin: r.yearMin,
+    yearMax: r.yearMax,
+    severity: r.severity,
+    issue: r.issue,
+  }));
+}
+
+export function getGuideBySlug(slug: string): ReliabilityGuide | null {
+  return getReliabilityGuides().find((g) => g.slug === slug) ?? null;
+}
+
 /** Match a listing's make/model/year against the curated rules. Returns the first/worst hit. */
 export function checkReliability(
   make: string | null,

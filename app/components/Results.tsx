@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { NormalizedListing, WizardProfile } from "@/lib/types";
 import { IconSparkles, IconPencil, IconX, IconLink, IconCheck } from "@tabler/icons-react";
+import { track } from "@vercel/analytics";
 import { runWizardSearch } from "@/lib/search-client";
 import { useRecentlyViewed } from "@/lib/client-store";
 import { shareUrlForProfile } from "@/lib/share";
@@ -36,10 +37,13 @@ export function Results({
   // Kick off a search stream. A monotonically-increasing token guards against a stale stream
   // from a previous search overwriting the latest one. setState happens only in async callbacks.
   const startStream = useCallback((p: WizardProfile, token: number) => {
+    track("search"); // funnel: search kicked off (custom events record on Vercel Pro+)
     runWizardSearch(p, {
       onReplyDelta: (t) => token === runToken.current && setReply((r) => r + t),
       onListings: (l, c, enriched) => {
         if (token !== runToken.current) return;
+        // Fires once per search (the enriched batch is always the final one, cached or live).
+        if (enriched) track("results_shown", { count: l.length });
         setListings(l);
         setCounts(c);
         setReliabilityLoading(!enriched);
